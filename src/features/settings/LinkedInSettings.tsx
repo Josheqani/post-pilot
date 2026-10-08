@@ -11,6 +11,10 @@ export const LinkedInSettings: React.FC = () => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
+  // Dynamic OAuth redirect URI based on the current origin, matching the
+  // server-side fallback in worker/routes/linkedin.ts
+  const redirectUri = `${window.location.origin}/settings/linkedin/callback`;
+
   const handleOAuthConnect = async () => {
     setIsConnecting(true);
     setAuthError(null);
@@ -244,7 +248,7 @@ export const LinkedInSettings: React.FC = () => {
                 fontSize: 0,
               }}
             >
-              http://localhost:5173/settings/linkedin/callback
+              {redirectUri}
             </Box>
           </li>
           <li>

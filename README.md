@@ -97,9 +97,19 @@ In the **Cloudflare Dashboard**:
 ### 2. Set Secrets & Deploy
 
 In your Worker's **Settings > Variables and secrets**, add:
-- `ENCRYPTION_KEY`: A secure random string (generate with `openssl rand -base64 32`).
-- `LINKEDIN_CLIENT_ID` *(optional)*: For direct LinkedIn OAuth.
-- `LINKEDIN_CLIENT_SECRET` *(optional)*: For direct LinkedIn OAuth.
+
+| Variable | Required | Description |
+|---|---|---|
+| `ENCRYPTION_KEY` | ✅ | Secure random string used to encrypt stored tokens & API keys (generate with `openssl rand -base64 32`). |
+| `LINKEDIN_CLIENT_ID` | Optional | LinkedIn app client ID for direct LinkedIn OAuth. |
+| `LINKEDIN_CLIENT_SECRET` | Optional | LinkedIn app client secret for direct LinkedIn OAuth. |
+| `LINKEDIN_REDIRECT_URI` | Optional | Override the OAuth callback URL. Defaults to `<your-origin>/settings/linkedin/callback`, derived dynamically from the request origin. |
+| `DEFAULT_AI_BASE_URL` | Optional | Server-level AI fallback: base URL of an OpenAI-compatible `/v1` endpoint. |
+| `DEFAULT_AI_API_KEY` | Optional | Server-level AI fallback: API key for the endpoint above. |
+| `DEFAULT_AI_MODEL` | Optional | Server-level AI fallback: model name to use. |
+| `ENVIRONMENT` | Optional | Runtime environment flag (set to `development` in `wrangler.jsonc`). |
+
+> **Note:** The OAuth redirect URI is dynamic — when hosted on `domain.com`, the callback is `https://domain.com/settings/linkedin/callback`. Add that URL to your LinkedIn app's authorized redirect URLs.
 
 Now deploy:
 - **Via Cloudflare Git Integration (Recommended)**: Connect your repository in the Cloudflare Dashboard, set build command to `pnpm run build` and output directory to `./dist`, then deploy!
