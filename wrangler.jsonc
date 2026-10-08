@@ -9,6 +9,17 @@
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
   },
+  // Declare the D1 binding without an ID so it is NOT wiped on each deploy.
+  // Wrangler auto-provisions / matches the existing database by name and,
+  // when deploying via dashboard Git integration, keeps the binding intact.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "postpilot-db"
+    }
+  ],
+  // Preserve dashboard-configured secrets/vars (ENCRYPTION_KEY, etc.) on deploy
+  "keep_vars": true,
   "vars": {
     "ENVIRONMENT": "development",
   },

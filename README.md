@@ -90,9 +90,11 @@ Deploy your instance to Cloudflare in two steps:
 In the **Cloudflare Dashboard**:
 1. Go to **Storage & Databases** > **D1 SQL Database** > Click **Create database** (`postpilot-db`).
 2. Open the **Console** tab, paste the SQL from `migrations/0001_initial.sql`, and click **Execute**.
-3. In your Worker's **Settings > Bindings**, add a **D1 Database** binding:
-   - **Variable name**: `DB` *(uppercase)*
-   - **Database**: `postpilot-db`
+
+> **No manual binding needed:** `wrangler.jsonc` declares the `DB` binding by
+> database name (no database ID), so the binding is created automatically on
+> deploy and **persists across deployments** — you never need to edit the
+> Worker's bindings in the dashboard.
 
 ### 2. Set Secrets & Deploy
 
@@ -118,6 +120,9 @@ Now deploy:
   pnpm run build
   pnpm dlx wrangler deploy
   ```
+
+Secrets (`ENCRYPTION_KEY`, etc.) configured in the dashboard are preserved on
+deploy — `wrangler.jsonc` sets `keep_vars: true`, so you only ever set them once.
 
 Your self-hosted PostPilot instance will be live on your Cloudflare Workers domain or custom domain!
 

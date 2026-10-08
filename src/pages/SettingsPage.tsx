@@ -27,16 +27,30 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ colorMode, onSetColo
 
   const currentTab = searchParams.get('tab') || 'ai';
   const callbackCode = searchParams.get('code');
+  const callbackError = searchParams.get('error');
+  const callbackErrorDescription = searchParams.get('error_description');
 
   const [callbackStatus, setCallbackStatus] = useState<{
     isLoading: boolean;
     error: string | null;
     success: boolean;
-  }>({
-    isLoading: Boolean(callbackCode),
-    error: null,
-    success: false,
-  });
+  }>(
+    callbackError
+      ? {
+          isLoading: false,
+          error:
+            (callbackErrorDescription
+              ? decodeURIComponent(callbackErrorDescription.replace(/\+/g, ' '))
+              : null) ||
+            `LinkedIn OAuth failed: ${callbackError}`,
+          success: false,
+        }
+      : {
+          isLoading: Boolean(callbackCode),
+          error: null,
+          success: false,
+        }
+  );
 
   // Handle LinkedIn OAuth callback if redirected here with `?code=...`
   useEffect(() => {
@@ -88,7 +102,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ colorMode, onSetColo
 
       {callbackStatus.success && (
         <Flash variant="success" sx={{ mb: 3 }}>
-          <span style={{ marginRight: 8 }}>
+          <span
+            style={{
+              marginRight: 8,
+              display: 'inline-flex',
+              verticalAlign: 'text-bottom',
+            }}
+          >
             <CheckIcon size={16} />
           </span>
           LinkedIn account successfully connected! Redirecting...
@@ -97,7 +117,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ colorMode, onSetColo
 
       {callbackStatus.error && (
         <Flash variant="danger" sx={{ mb: 3 }}>
-          <span style={{ marginRight: 8 }}>
+          <span
+            style={{
+              marginRight: 8,
+              display: 'inline-flex',
+              verticalAlign: 'text-bottom',
+            }}
+          >
             <AlertIcon size={16} />
           </span>
           Failed to complete LinkedIn connection: {callbackStatus.error}
