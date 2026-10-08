@@ -28,19 +28,20 @@ export const ChatPage: React.FC = () => {
   const [isDraftCreating, setIsDraftCreating] = React.useState(false);
   const [draftNotice, setDraftNotice] = React.useState<string | null>(null);
 
-  const handleCreateDraft = async (content: string) => {
+  const handleCreateDraft = async (content: string, title?: string) => {
     setIsDraftCreating(true);
     setDraftNotice(null);
     try {
-      // Create a new post draft from this AI message
+      // Create a new post draft from this AI message including the generated title
       const post = await api.posts.create({
+        title: title?.trim() || undefined,
         content,
         source: 'ai',
         status: 'draft',
         conversationId: activeConversationId || undefined,
       });
 
-      setDraftNotice(`Draft created successfully! Redirecting to editor...`);
+      setDraftNotice(`Draft "${post.title || 'Untitled'}" created successfully! Redirecting to editor...`);
       setTimeout(() => {
         navigate(`/posts/${post.id}`);
       }, 800);

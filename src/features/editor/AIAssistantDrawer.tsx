@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button, Select, Spinner } from '@primer/react';
 import { Box, Heading, Text, Flash } from '@/components/PrimerCompat';
-import { SparkleIcon, SyncIcon, ZapIcon, HashIcon, CheckIcon } from '@primer/octicons-react';
+import { SparkleIcon, SyncIcon, ZapIcon, HashIcon, CheckIcon, BookmarkIcon } from '@primer/octicons-react';
 import { api } from '@/services/api';
 import { AIImproveAction } from '@/types';
 
@@ -9,6 +9,7 @@ interface AIAssistantDrawerProps {
   currentContent: string;
   onApplyContent: (newContent: string) => void;
   onAppendContent: (appendStr: string) => void;
+  onApplyTitle?: (newTitle: string) => void;
 }
 
 const TONES = [
@@ -23,6 +24,7 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
   currentContent,
   onApplyContent,
   onAppendContent,
+  onApplyTitle,
 }) => {
   const [selectedTone, setSelectedTone] = useState(TONES[0]);
   const [isLoading, setIsLoading] = useState(false);
@@ -59,7 +61,12 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
 
   const handleApplyResult = () => {
     if (!generatedResult) return;
-    if (activeAction === 'generate_hashtags') {
+    if (activeAction === 'generate_title' && onApplyTitle) {
+      const lines = generatedResult.split('\n').map((l) => l.trim()).filter(Boolean);
+      const firstLine = lines[0] || generatedResult;
+      const cleanTitle = firstLine.replace(/^\d+[.)]\s*/, '').replace(/^["'“”]/, '').replace(/["'“”]$/, '').trim();
+      onApplyTitle(cleanTitle);
+    } else if (activeAction === 'generate_hashtags') {
       onAppendContent(`\n\n${generatedResult}`);
     } else if (activeAction === 'generate_hook') {
       // Pick first hook or prepend at top
@@ -139,6 +146,17 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
         >
           Hashtags
         </Button>
+
+        {onApplyTitle && (
+          <Button
+            size="small"
+            leadingVisual={BookmarkIcon}
+            onClick={() => handleAction('generate_title')}
+            disabled={isLoading}
+          >
+            Titles
+          </Button>
+        )}
       </Box>
 
       {/* Change Tone */}
@@ -197,7 +215,11 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
               leadingVisual={CheckIcon}
               onClick={handleApplyResult}
             >
-              {activeAction === 'generate_hashtags' ? 'Append to Post' : 'Apply to Editor'}
+              {activeAction === 'generate_title'
+                ? 'Apply Title'
+                : activeAction === 'generate_hashtags'
+                  ? 'Append to Post'
+                  : 'Apply to Editor'}
             </Button>
           </Box>
 

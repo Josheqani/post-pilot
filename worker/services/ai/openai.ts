@@ -362,7 +362,13 @@ What's one question that changed the way your team works?
     const prompt = (options.prompt || '').toLowerCase();
     let content: string;
 
-    if (prompt.includes('generate_hook') || prompt.includes('opening hook')) {
+    if (prompt.includes('generate_title') || prompt.includes('title')) {
+      content = `1. The Counterintuitive Truth About Shipping Early
+2. Why Perfectionism Kills Startup Velocity
+3. Stop Waiting for Bug-Free Code: The 48-Hour Feedback Loop
+4. 3 Mental Shifts That Doubled Our Engineering Output
+5. How to Ship Products Users Actually Want`;
+    } else if (prompt.includes('generate_hook') || prompt.includes('opening hook')) {
       content = `1. Most developers get this completely backwards.
 2. The counterintuitive truth about building scalable systems:
 3. Why 90% of engineering teams burn out (and how to prevent it):

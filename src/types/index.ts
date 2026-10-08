@@ -88,6 +88,7 @@ export interface Message {
   createdAt: string;
   isPostDraft?: boolean;
   draftContent?: string;
+  draftTitle?: string;
 }
 
 export interface User {
@@ -99,7 +100,12 @@ export interface User {
 }
 
 export type AIImproveAction =
-  'improve' | 'rewrite' | 'change_tone' | 'generate_hook' | 'generate_hashtags';
+  | 'improve'
+  | 'rewrite'
+  | 'change_tone'
+  | 'generate_hook'
+  | 'generate_hashtags'
+  | 'generate_title';
 
 export interface AIImproveRequest {
   action: AIImproveAction;

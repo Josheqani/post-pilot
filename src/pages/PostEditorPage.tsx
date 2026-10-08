@@ -250,6 +250,7 @@ export const PostEditorPage: React.FC = () => {
             currentContent={content}
             onApplyContent={(newText) => setContent(newText)}
             onAppendContent={(appendStr) => setContent((prev) => `${prev}${appendStr}`)}
+            onApplyTitle={setTitle}
           />
 
           <FormControl required>

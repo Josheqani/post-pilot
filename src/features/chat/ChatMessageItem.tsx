@@ -6,25 +6,43 @@ import { Message } from '@/types';
 
 interface ChatMessageItemProps {
   message: Message;
-  onCreateDraft: (content: string) => void;
+  onCreateDraft: (content: string, title?: string) => void;
   isDraftCreating?: boolean;
 }
 
-function getPostDraftInfo(message: Message): { isPostDraft: boolean; draftContent: string } {
+function getPostDraftInfo(message: Message): {
+  isPostDraft: boolean;
+  draftContent: string;
+  draftTitle?: string;
+} {
   // If explicitly flagged by the worker
   if (typeof message.isPostDraft === 'boolean') {
     return {
       isPostDraft: message.isPostDraft,
       draftContent: message.draftContent || message.content,
+      draftTitle: message.draftTitle,
     };
+  }
+
+  let draftTitle: string | undefined = undefined;
+  const titleTagMatch = message.content.match(/<title>([\s\S]*?)<\/title>/i);
+  if (titleTagMatch && titleTagMatch[1]) {
+    draftTitle = titleTagMatch[1].trim();
   }
 
   // Check for explicit <post>...</post> or <linkedin_post> tags
   const tagMatch = message.content.match(/<(?:post|linkedin_post)>([\s\S]*?)<\/(?:post|linkedin_post)>/i);
   if (tagMatch && tagMatch[1]) {
+    const draftContent = tagMatch[1].trim();
+    if (!draftTitle) {
+      const firstLine = draftContent.split('\n').map((l) => l.trim()).find((l) => l.length > 0) || '';
+      const cleaned = firstLine.replace(/^[#\s*•\->]+/, '').replace(/^["'“”]/, '').replace(/["'“”]$/, '').trim();
+      if (cleaned) draftTitle = cleaned.length > 60 ? cleaned.slice(0, 57).trim() + '...' : cleaned;
+    }
     return {
       isPostDraft: true,
-      draftContent: tagMatch[1].trim(),
+      draftContent,
+      draftTitle,
     };
   }
 
@@ -33,9 +51,16 @@ function getPostDraftInfo(message: Message): { isPostDraft: boolean; draftConten
   const hasParagraphs = (message.content.match(/\n\s*\n/g) || []).length >= 2;
   const isNumberedList = /^\s*1\.\s+.*\n\s*2\.\s+/m.test(message.content);
   if (hasHashtags && hasParagraphs && message.content.length >= 120 && !isNumberedList) {
+    const draftContent = message.content.trim();
+    if (!draftTitle) {
+      const firstLine = draftContent.split('\n').map((l) => l.trim()).find((l) => l.length > 0) || '';
+      const cleaned = firstLine.replace(/^[#\s*•\->]+/, '').replace(/^["'“”]/, '').replace(/["'“”]$/, '').trim();
+      if (cleaned) draftTitle = cleaned.length > 60 ? cleaned.slice(0, 57).trim() + '...' : cleaned;
+    }
     return {
       isPostDraft: true,
-      draftContent: message.content.trim(),
+      draftContent,
+      draftTitle,
     };
   }
 
@@ -58,7 +83,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
 
   // Strip XML-like draft tags for clean message reading
   const displayContent = message.content
-    .replace(/<\/?(?:post|linkedin_post)>/gi, '')
+    .replace(/<\/?(?:title|post|linkedin_post)>/gi, '')
     .trim();
 
   const handleCopy = () => {
@@ -157,6 +182,26 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
           </Text>
         </Box>
 
+        {/* Suggested Title preview for draft */}
+        {isAI && draftInfo.isPostDraft && draftInfo.draftTitle && (
+          <Box
+            sx={{
+              mb: 2,
+              px: 2,
+              py: 1,
+              bg: 'canvas.default',
+              borderLeft: '3px solid',
+              borderColor: 'accent.emphasis',
+              borderRadius: 1,
+            }}
+          >
+            <Text sx={{ fontSize: 0, color: 'fg.muted', display: 'block' }}>Suggested Title:</Text>
+            <Text sx={{ fontSize: 1, fontWeight: 'bold', color: 'fg.default' }}>
+              {draftInfo.draftTitle}
+            </Text>
+          </Box>
+        )}
+
         <Box
           sx={{
             whiteSpace: 'pre-wrap',
@@ -189,7 +234,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                 size="small"
                 variant="primary"
                 leadingVisual={PlusIcon}
-                onClick={() => onCreateDraft(draftInfo.draftContent)}
+                onClick={() => onCreateDraft(draftInfo.draftContent, draftInfo.draftTitle)}
                 disabled={isDraftCreating}
               >
                 Create Draft

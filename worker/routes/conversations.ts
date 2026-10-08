@@ -8,18 +8,55 @@ import { createAIProvider } from '../services/ai/factory';
 import { chatWithAssistant } from '../services/ai/service';
 import { AIMessage } from '../services/ai/types';
 
-function detectPostDraft(content: string): { isPostDraft: boolean; draftContent?: string } {
+function detectPostDraft(content: string): {
+  isPostDraft: boolean;
+  draftContent?: string;
+  draftTitle?: string;
+} {
+  let isPostDraft = false;
+  let draftContent: string | undefined = undefined;
+  let draftTitle: string | undefined = undefined;
+
+  // 1. Check for explicit <title>...</title>
+  const titleTagMatch = content.match(/<title>([\s\S]*?)<\/title>/i);
+  if (titleTagMatch && titleTagMatch[1]) {
+    draftTitle = titleTagMatch[1].trim();
+  }
+
+  // 2. Check for explicit <post>...</post>
   const postMatch = content.match(/<(?:post|linkedin_post)>([\s\S]*?)<\/(?:post|linkedin_post)>/i);
   if (postMatch && postMatch[1]) {
-    return { isPostDraft: true, draftContent: postMatch[1].trim() };
+    isPostDraft = true;
+    draftContent = postMatch[1].trim();
+  } else {
+    const hasHashtags = /#[\w\d_]{2,}/.test(content);
+    const hasParagraphs = (content.match(/\n\s*\n/g) || []).length >= 2;
+    const isNumberedList = /^\s*1\.\s+.*\n\s*2\.\s+/m.test(content);
+    if (hasHashtags && hasParagraphs && content.length >= 120 && !isNumberedList) {
+      isPostDraft = true;
+      draftContent = content.trim();
+    }
   }
-  const hasHashtags = /#[\w\d_]{2,}/.test(content);
-  const hasParagraphs = (content.match(/\n\s*\n/g) || []).length >= 2;
-  const isNumberedList = /^\s*1\.\s+.*\n\s*2\.\s+/m.test(content);
-  if (hasHashtags && hasParagraphs && content.length >= 120 && !isNumberedList) {
-    return { isPostDraft: true, draftContent: content.trim() };
+
+  // 3. Fallback: extract clean title from first line/hook if not explicitly provided
+  if (isPostDraft && draftContent && !draftTitle) {
+    const firstLine = draftContent
+      .split('\n')
+      .map((l) => l.trim())
+      .find((l) => l.length > 0) || '';
+
+    const cleaned = firstLine
+      .replace(/^[#\s*•\->]+/, '')
+      .replace(/^["'“”]/, '')
+      .replace(/["'“”]$/, '')
+      .trim();
+
+    if (cleaned) {
+      draftTitle = cleaned.length > 60 ? cleaned.slice(0, 57).trim() + '...' : cleaned;
+    }
   }
-  return { isPostDraft: false };
+
+  return { isPostDraft, draftContent, draftTitle };
 }
 
 export async function handleConversationRoutes(
@@ -119,6 +156,7 @@ export async function handleConversationRoutes(
         createdAt: m.created_at,
         isPostDraft: draftInfo.isPostDraft,
         draftContent: draftInfo.draftContent,
+        draftTitle: draftInfo.draftTitle,
       };
     });
 
@@ -279,6 +317,7 @@ export async function handleConversationRoutes(
           createdAt: assistantTime,
           isPostDraft,
           draftContent,
+          draftTitle: draftInfo.draftTitle,
         },
       });
     } catch (err: unknown) {

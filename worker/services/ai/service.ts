@@ -14,8 +14,9 @@ LinkedIn Best Practices:
 6. Hashtags: Place 3-5 relevant hashtags at the bottom when completing a post draft.
 
 Draft Formatting:
-- When you produce a complete, publish-ready LinkedIn post, enclose the full post content in <post> and </post> tags.
+- When you produce a complete, publish-ready LinkedIn post, provide a concise, engaging working title in <title>...</title> tags, and enclose the full post content in <post> and </post> tags.
   Example:
+  <title>Why High-Performing Teams Value Curiosity Over Ego</title>
   <post>
   [Opening Hook]
 
@@ -25,7 +26,7 @@ Draft Formatting:
 
   #Topic #Leadership #Innovation
   </post>
-- Do NOT use <post> tags for general conversational replies, asking questions, or discussing idea lists. Only use them when you write an actual post ready to be drafted.`;
+- Do NOT use <post> or <title> tags for general conversational replies, asking questions, or discussing idea lists. Only use them when you write an actual post ready to be drafted.`;
 
   if (enableSearch) {
     prompt += `\n\nWeb Search & Real-Time Knowledge:
@@ -92,6 +93,10 @@ export async function improveContent(provider: AIProvider, req: AIImproveRequest
 
     case 'generate_hashtags':
       prompt = `Analyze this LinkedIn post and generate 5 to 7 highly relevant, high-reach LinkedIn hashtags. Return ONLY the hashtags separated by spaces (e.g. #Leadership #Tech #Innovation):\n\n---\n${content}\n---`;
+      break;
+
+    case 'generate_title':
+      prompt = `Generate 5 catchy, concise, and professional working titles (under 60 characters each) for this LinkedIn post to help identify and organize it. Format as a numbered list (1 to 5) with no other preamble:\n\n---\n${content}\n---`;
       break;
 
     default:
