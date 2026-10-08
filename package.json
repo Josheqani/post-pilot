@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "concurrently -k -n \"worker,client\" -c \"yellow,cyan\" \"pnpm run dev:worker\" \"pnpm run dev:client\"",
     "dev:client": "vite",
-    "dev:worker": "wrangler dev worker/index.ts --port 8787",
+    "dev:worker": "wrangler dev worker/index.ts --port 8787 --d1 DB=postpilot-db",
     "build": "tsc --noEmit && vite build",
     "build:client": "vite build",
     "typecheck": "tsc --noEmit",
