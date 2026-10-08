@@ -19,7 +19,7 @@ export const LinkedInSettings: React.FC = () => {
     setIsConnecting(true);
     setAuthError(null);
     try {
-      const res = await api.linkedin.getAuthUrl();
+      const res = await api.linkedin.getAuthUrl(redirectUri);
       if (res.isConfigured && res.url) {
         window.location.href = res.url;
       } else {

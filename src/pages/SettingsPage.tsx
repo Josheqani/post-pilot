@@ -55,8 +55,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ colorMode, onSetColo
   // Handle LinkedIn OAuth callback if redirected here with `?code=...`
   useEffect(() => {
     if (callbackCode) {
+      const redirectUri = `${window.location.origin}/settings/linkedin/callback`;
       api.linkedin
-        .submitCallback(callbackCode)
+        .submitCallback(callbackCode, redirectUri)
         .then(() => {
           setCallbackStatus({ isLoading: false, error: null, success: true });
           setTimeout(() => {

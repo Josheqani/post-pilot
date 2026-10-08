@@ -67,12 +67,16 @@ export const api = {
   linkedin: {
     getStatus: () =>
       request<{ isConnected: boolean; account: LinkedInAccount | null }>('/linkedin/status'),
-    getAuthUrl: () =>
-      request<{ isConfigured: boolean; url?: string; message?: string }>('/linkedin/auth-url'),
-    submitCallback: (code: string) =>
+    getAuthUrl: (redirectUri?: string) => {
+      const q = redirectUri ? `?redirect_uri=${encodeURIComponent(redirectUri)}` : '';
+      return request<{ isConfigured: boolean; url?: string; message?: string }>(
+        `/linkedin/auth-url${q}`
+      );
+    },
+    submitCallback: (code: string, redirectUri?: string) =>
       request<{ success: boolean; profile: unknown }>('/linkedin/callback', {
         method: 'POST',
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code, redirectUri }),
       }),
     disconnect: () =>
       request<{ success: boolean }>('/linkedin/disconnect', {

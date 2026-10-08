@@ -52,7 +52,9 @@ export async function handleLinkedInRoutes(
   // 2. Auth URL for OAuth redirect
   if (url.pathname === '/api/linkedin/auth-url' && request.method === 'GET') {
     const clientId = env.LINKEDIN_CLIENT_ID;
-    const redirectUri = env.LINKEDIN_REDIRECT_URI || `${url.origin}/settings/linkedin/callback`;
+    const clientRedirect = url.searchParams.get('redirect_uri');
+    const redirectUri =
+      env.LINKEDIN_REDIRECT_URI || clientRedirect || `${url.origin}/settings/linkedin/callback`;
 
     if (!clientId) {
       return jsonResponse({
@@ -73,14 +75,15 @@ export async function handleLinkedInRoutes(
 
   // 3. OAuth callback code exchange
   if (url.pathname === '/api/linkedin/callback' && request.method === 'POST') {
-    const body = (await request.json()) as { code?: string };
+    const body = (await request.json()) as { code?: string; redirectUri?: string };
     if (!body.code) {
       return errorResponse('Missing authorization code', 400);
     }
 
     const clientId = env.LINKEDIN_CLIENT_ID;
     const clientSecret = env.LINKEDIN_CLIENT_SECRET;
-    const redirectUri = env.LINKEDIN_REDIRECT_URI || `${url.origin}/settings/linkedin/callback`;
+    const redirectUri =
+      env.LINKEDIN_REDIRECT_URI || body.redirectUri || `${url.origin}/settings/linkedin/callback`;
 
     if (!clientId || !clientSecret) {
       return errorResponse('LinkedIn OAuth credentials not configured on server', 500);
