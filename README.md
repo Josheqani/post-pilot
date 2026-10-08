@@ -107,6 +107,9 @@ bunx wrangler deploy
 
 Your self-hosted PostPilot instance will be live on your Cloudflare Workers domain or custom domain!
 
+> **Tip for Cloudflare Dashboard Git Builds**:
+> If deploying via the Cloudflare Dashboard Git integration, add the environment variable **`BUN_VERSION = 1.4.2`** in **Settings > Variables and secrets** so Cloudflare's build environment uses Bun 1.4+ to read `bun.lock`.
+
 ---
 
 ## Code Quality
