@@ -1,0 +1,46 @@
+{
+  "name": "post-pilot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n \"worker,client\" -c \"yellow,cyan\" \"bun run dev:worker\" \"bun run dev:client\"",
+    "dev:client": "vite",
+    "dev:worker": "wrangler dev worker/index.ts --port 8787",
+    "build": "tsc --noEmit && vite build",
+    "build:client": "vite build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "db:migrate:local": "echo y | wrangler d1 migrations apply postpilot-db --local"
+  },
+  "dependencies": {
+    "@primer/octicons-react": "^19.40.0",
+    "@primer/primitives": "^11.10.0",
+    "@primer/react": "^38.40.1",
+    "clsx": "^2.1.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-router-dom": "^7.18.4",
+    "styled-components": "^6.5.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261008.1",
+    "@eslint/js": "^10.0.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/styled-components": "^5.1.36",
+    "@vitejs/plugin-react": "^6.1.2",
+    "concurrently": "^10.0.5",
+    "eslint": "^10.12.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "prettier": "^3.9.9",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.71.1",
+    "vite": "^8.3.3",
+    "wrangler": "^4.148.0"
+  }
+}
