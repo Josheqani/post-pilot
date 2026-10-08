@@ -85,25 +85,29 @@ Open **http://localhost:5173** in your browser.
 
 Deploy your instance to Cloudflare in two steps:
 
-### 1. Provision Cloudflare D1
+### 1. Provision Cloudflare D1 Database
 
-```bash
-pnpm dlx wrangler d1 create postpilot-db
-pnpm dlx wrangler d1 migrations apply postpilot-db --remote
-```
-
-Add your `database_id` from the output into `wrangler.jsonc`.
+In the **Cloudflare Dashboard**:
+1. Go to **Storage & Databases** > **D1 SQL Database** > Click **Create database** (`postpilot-db`).
+2. Open the **Console** tab, paste the SQL from `migrations/0001_initial.sql`, and click **Execute**.
+3. In your Worker's **Settings > Bindings**, add a **D1 Database** binding:
+   - **Variable name**: `DB` *(uppercase)*
+   - **Database**: `postpilot-db`
 
 ### 2. Set Secrets & Deploy
 
-```bash
-pnpm dlx wrangler secret put ENCRYPTION_KEY
-pnpm dlx wrangler secret put LINKEDIN_CLIENT_ID       # Optional: for LinkedIn OAuth
-pnpm dlx wrangler secret put LINKEDIN_CLIENT_SECRET   # Optional: for LinkedIn OAuth
+In your Worker's **Settings > Variables and secrets**, add:
+- `ENCRYPTION_KEY`: A secure random string (generate with `openssl rand -base64 32`).
+- `LINKEDIN_CLIENT_ID` *(optional)*: For direct LinkedIn OAuth.
+- `LINKEDIN_CLIENT_SECRET` *(optional)*: For direct LinkedIn OAuth.
 
-pnpm run build
-pnpm dlx wrangler deploy
-```
+Now deploy:
+- **Via Cloudflare Git Integration (Recommended)**: Connect your repository in the Cloudflare Dashboard, set build command to `pnpm run build` and output directory to `./dist`, then deploy!
+- **Via CLI**:
+  ```bash
+  pnpm run build
+  pnpm dlx wrangler deploy
+  ```
 
 Your self-hosted PostPilot instance will be live on your Cloudflare Workers domain or custom domain!
 
