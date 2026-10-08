@@ -52,7 +52,7 @@ Instead of paying for expensive monthly SaaS tools that lock your drafts into pr
 ### 1. Clone & Install
 
 ```bash
-git clone https://github.com/your-username/post-pilot.git
+git clone https://github.com/Josheqani/post-pilot.git
 cd post-pilot
 bun install
 ```
