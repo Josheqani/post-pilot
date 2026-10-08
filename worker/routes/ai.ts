@@ -36,9 +36,15 @@ export async function handleAIRoutes(
     }
 
     let customHeaders: Record<string, string> = {};
+    let enableSearch = false;
     if (row.custom_headers) {
       try {
-        customHeaders = JSON.parse(row.custom_headers);
+        const parsed = JSON.parse(row.custom_headers);
+        if (parsed._enable_search === 'true' || parsed._enable_search === true) {
+          enableSearch = true;
+        }
+        delete parsed._enable_search;
+        customHeaders = parsed;
       } catch {
         // ignore
       }
@@ -60,6 +66,7 @@ export async function handleAIRoutes(
       temperature: row.temperature,
       hasApiKey: Boolean(row.api_key),
       maskedApiKey: maskSecret(rawKey),
+      enableSearch,
     };
 
     return jsonResponse(payload);
@@ -90,7 +97,11 @@ export async function handleAIRoutes(
       return errorResponse('API key is required', 400);
     }
 
-    const headersJson = body.customHeaders ? JSON.stringify(body.customHeaders) : null;
+    const mergedHeaders = {
+      ...(body.customHeaders || {}),
+      ...(body.enableSearch !== undefined ? { _enable_search: body.enableSearch ? 'true' : 'false' } : {}),
+    };
+    const headersJson = JSON.stringify(mergedHeaders);
     const temp = body.temperature ?? 0.7;
     const now = new Date().toISOString();
 

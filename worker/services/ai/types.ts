@@ -17,6 +17,7 @@ export interface AIChatOptions {
   messages: AIMessage[];
   temperature?: number;
   maxTokens?: number;
+  enableSearch?: boolean;
 }
 
 export interface AIGenerateOptions {
@@ -33,6 +34,7 @@ export interface AIProviderConfig {
   model: string;
   customHeaders?: Record<string, string>;
   temperature?: number;
+  enableSearch?: boolean;
 }
 
 export interface AITestResult {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Button, FormControl, TextInput, Spinner } from '@primer/react';
+import { Button, FormControl, TextInput, Spinner, Label } from '@primer/react';
 import { Box, Heading, Text, Flash } from '@/components/PrimerCompat';
-import { CheckIcon, AlertIcon, ZapIcon } from '@primer/octicons-react';
+import { CheckIcon, AlertIcon, ZapIcon, GlobeIcon } from '@primer/octicons-react';
 import { useAIConfig } from '@/hooks/useAIConfig';
 
 export const AIProviderSettings: React.FC = () => {
@@ -13,6 +13,7 @@ export const AIProviderSettings: React.FC = () => {
   const [model, setModel] = useState('gpt-4o');
   const [temperature, setTemperature] = useState('0.7');
   const [headersJson, setHeadersJson] = useState('{}');
+  const [enableSearch, setEnableSearch] = useState(false);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
 
   useEffect(() => {
@@ -20,6 +21,7 @@ export const AIProviderSettings: React.FC = () => {
       setBaseUrl(config.baseUrl || 'https://api.openai.com/v1');
       setModel(config.model || 'gpt-4o');
       setTemperature(String(config.temperature ?? 0.7));
+      setEnableSearch(Boolean(config.enableSearch));
       if (config.customHeaders) {
         setHeadersJson(JSON.stringify(config.customHeaders, null, 2));
       }
@@ -47,6 +49,7 @@ export const AIProviderSettings: React.FC = () => {
         model,
         temperature: parseFloat(temperature) || 0.7,
         customHeaders: parsedHeaders,
+        enableSearch,
       });
       setSuccessNotice('AI configuration updated and encrypted securely.');
       setApiKey(''); // Clear client field after successful save
@@ -194,6 +197,41 @@ export const AIProviderSettings: React.FC = () => {
               Useful for OpenRouter or corporate proxies requiring custom headers.
             </FormControl.Caption>
           </FormControl>
+
+          {/* Web Search Grounding Toggle */}
+          <Box
+            sx={{
+              p: 3,
+              borderRadius: 2,
+              border: '1px solid',
+              borderColor: enableSearch ? 'accent.muted' : 'border.default',
+              bg: enableSearch ? 'canvas.subtle' : 'canvas.default',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 3,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <input
+              type="checkbox"
+              id="enable-search-toggle"
+              checked={enableSearch}
+              onChange={(e) => setEnableSearch(e.target.checked)}
+              style={{ marginTop: 3, cursor: 'pointer', width: 16, height: 16 }}
+            />
+            <label htmlFor="enable-search-toggle" style={{ cursor: 'pointer', flex: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <GlobeIcon size={16} />
+                <Text sx={{ fontWeight: 600, fontSize: 1 }}>
+                  Enable Live Web Search & Grounding
+                </Text>
+                <Label variant="accent">Search</Label>
+              </Box>
+              <Text sx={{ fontSize: 0, color: 'fg.muted', display: 'block', mt: 1, lineHeight: 1.5 }}>
+                Enables real-time internet search for your AI model. For OpenRouter, automatically sends the web plugin (<code>plugins: [&#123; id: 'web' &#125;]</code>). For Perplexity, enables citations and search grounding. Instructs the model to cite up-to-date facts.
+              </Text>
+            </label>
+          </Box>
 
           <Box sx={{ display: 'flex', gap: 2, pt: 2 }}>
             <Button variant="primary" type="submit" disabled={isSaving}>

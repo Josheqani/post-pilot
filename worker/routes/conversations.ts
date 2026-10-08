@@ -8,6 +8,20 @@ import { createAIProvider } from '../services/ai/factory';
 import { chatWithAssistant } from '../services/ai/service';
 import { AIMessage } from '../services/ai/types';
 
+function detectPostDraft(content: string): { isPostDraft: boolean; draftContent?: string } {
+  const postMatch = content.match(/<(?:post|linkedin_post)>([\s\S]*?)<\/(?:post|linkedin_post)>/i);
+  if (postMatch && postMatch[1]) {
+    return { isPostDraft: true, draftContent: postMatch[1].trim() };
+  }
+  const hasHashtags = /#[\w\d_]{2,}/.test(content);
+  const hasParagraphs = (content.match(/\n\s*\n/g) || []).length >= 2;
+  const isNumberedList = /^\s*1\.\s+.*\n\s*2\.\s+/m.test(content);
+  if (hasHashtags && hasParagraphs && content.length >= 120 && !isNumberedList) {
+    return { isPostDraft: true, draftContent: content.trim() };
+  }
+  return { isPostDraft: false };
+}
+
 export async function handleConversationRoutes(
   request: Request,
   ctx: RequestContext
@@ -95,13 +109,18 @@ export async function handleConversationRoutes(
       .bind(conversationId)
       .all<MessageRow>();
 
-    const messages: Message[] = (messageRows.results || []).map((m) => ({
-      id: m.id,
-      conversationId: m.conversation_id,
-      role: m.role,
-      content: m.content,
-      createdAt: m.created_at,
-    }));
+    const messages: Message[] = (messageRows.results || []).map((m) => {
+      const draftInfo = m.role === 'assistant' ? detectPostDraft(m.content) : { isPostDraft: false };
+      return {
+        id: m.id,
+        conversationId: m.conversation_id,
+        role: m.role,
+        content: m.content,
+        createdAt: m.created_at,
+        isPostDraft: draftInfo.isPostDraft,
+        draftContent: draftInfo.draftContent,
+      };
+    });
 
     return jsonResponse({
       conversation: {
@@ -176,42 +195,27 @@ export async function handleConversationRoutes(
       .first<AIConfigRow>();
 
     if (!configRow) {
-      // Create fallback assistant notice
-      const assistantMsgId = generateId('msg');
-      const assistantNotice =
-        '⚠️ PostPilot AI is not configured yet.\n\nPlease go to **Settings > AI Provider** and enter your API key (such as OpenAI, Groq, Ollama, or OpenRouter) to enable intelligent content generation.';
+      // Clean up the user message from DB so an unanswered orphan message isn't left
+      await env.DB.prepare('DELETE FROM messages WHERE id = ?').bind(userMsgId).run();
 
-      await env.DB.prepare(
-        `INSERT INTO messages (id, conversation_id, role, content, created_at)
-           VALUES (?, ?, 'assistant', ?, ?)`
-      )
-        .bind(assistantMsgId, conversationId, assistantNotice, new Date().toISOString())
-        .run();
-
-      return jsonResponse({
-        userMessage: {
-          id: userMsgId,
-          conversationId,
-          role: 'user',
-          content: userContent,
-          createdAt: now,
-        },
-        assistantMessage: {
-          id: assistantMsgId,
-          conversationId,
-          role: 'assistant',
-          content: assistantNotice,
-          createdAt: new Date().toISOString(),
-        },
-      });
+      return errorResponse(
+        'PostPilot AI is not configured yet. Please configure your API key in Settings > AI Provider.',
+        400
+      );
     }
 
     try {
       const apiKey = await decryptSecret(configRow.api_key, env.ENCRYPTION_KEY);
       let customHeaders: Record<string, string> = {};
+      let enableSearch = false;
       if (configRow.custom_headers) {
         try {
-          customHeaders = JSON.parse(configRow.custom_headers);
+          const parsed = JSON.parse(configRow.custom_headers);
+          if (parsed._enable_search === 'true' || parsed._enable_search === true) {
+            enableSearch = true;
+          }
+          delete parsed._enable_search;
+          customHeaders = parsed;
         } catch {
           // ignore
         }
@@ -224,6 +228,7 @@ export async function handleConversationRoutes(
         model: configRow.model,
         customHeaders,
         temperature: configRow.temperature,
+        enableSearch,
       });
 
       // Load previous messages for conversational history
@@ -241,7 +246,12 @@ export async function handleConversationRoutes(
         content: m.content,
       }));
 
-      const reply = await chatWithAssistant(provider, history);
+      const reply = await chatWithAssistant(provider, history, enableSearch);
+
+      // Check if the reply is a LinkedIn post draft
+      const draftInfo = detectPostDraft(reply);
+      const isPostDraft = draftInfo.isPostDraft;
+      const draftContent = draftInfo.draftContent;
 
       const assistantMsgId = generateId('msg');
       const assistantTime = new Date().toISOString();
@@ -267,37 +277,19 @@ export async function handleConversationRoutes(
           role: 'assistant',
           content: reply,
           createdAt: assistantTime,
+          isPostDraft,
+          draftContent,
         },
       });
     } catch (err: unknown) {
       const error = err as Error;
-      const assistantMsgId = generateId('msg');
-      const assistantTime = new Date().toISOString();
-      const assistantNotice = `⚠️ **AI Provider Communication Error**\n\n${error.message}\n\nPlease check your configuration in **Settings > AI Provider** or verify your API key and base URL.`;
+      // Clean up user message from DB on failure so the discussion state remains clean
+      await env.DB.prepare('DELETE FROM messages WHERE id = ?').bind(userMsgId).run();
 
-      await env.DB.prepare(
-        `INSERT INTO messages (id, conversation_id, role, content, created_at)
-           VALUES (?, ?, 'assistant', ?, ?)`
-      )
-        .bind(assistantMsgId, conversationId, assistantNotice, assistantTime)
-        .run();
-
-      return jsonResponse({
-        userMessage: {
-          id: userMsgId,
-          conversationId,
-          role: 'user',
-          content: userContent,
-          createdAt: now,
-        },
-        assistantMessage: {
-          id: assistantMsgId,
-          conversationId,
-          role: 'assistant',
-          content: assistantNotice,
-          createdAt: assistantTime,
-        },
-      });
+      return errorResponse(
+        `AI Provider Error: ${error.message || 'Failed to communicate with AI provider'}. Please check Settings > AI Provider.`,
+        502
+      );
     }
   }
 

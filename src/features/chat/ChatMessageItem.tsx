@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button } from '@primer/react';
+import { Button, Label } from '@primer/react';
 import { Box, Text } from '@/components/PrimerCompat';
 import { SparkleIcon, PersonIcon, PlusIcon, CheckIcon, CopyIcon } from '@primer/octicons-react';
 import { Message } from '@/types';
@@ -8,6 +8,41 @@ interface ChatMessageItemProps {
   message: Message;
   onCreateDraft: (content: string) => void;
   isDraftCreating?: boolean;
+}
+
+function getPostDraftInfo(message: Message): { isPostDraft: boolean; draftContent: string } {
+  // If explicitly flagged by the worker
+  if (typeof message.isPostDraft === 'boolean') {
+    return {
+      isPostDraft: message.isPostDraft,
+      draftContent: message.draftContent || message.content,
+    };
+  }
+
+  // Check for explicit <post>...</post> or <linkedin_post> tags
+  const tagMatch = message.content.match(/<(?:post|linkedin_post)>([\s\S]*?)<\/(?:post|linkedin_post)>/i);
+  if (tagMatch && tagMatch[1]) {
+    return {
+      isPostDraft: true,
+      draftContent: tagMatch[1].trim(),
+    };
+  }
+
+  // Heuristic: has hashtags, multiple paragraphs, length >= 120, not a numbered list of ideas
+  const hasHashtags = /#[\w\d_]{2,}/.test(message.content);
+  const hasParagraphs = (message.content.match(/\n\s*\n/g) || []).length >= 2;
+  const isNumberedList = /^\s*1\.\s+.*\n\s*2\.\s+/m.test(message.content);
+  if (hasHashtags && hasParagraphs && message.content.length >= 120 && !isNumberedList) {
+    return {
+      isPostDraft: true,
+      draftContent: message.content.trim(),
+    };
+  }
+
+  return {
+    isPostDraft: false,
+    draftContent: message.content,
+  };
 }
 
 export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
@@ -19,8 +54,16 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   const isSystem = message.role === 'system';
   const [copied, setCopied] = useState(false);
 
+  const draftInfo = isAI ? getPostDraftInfo(message) : { isPostDraft: false, draftContent: message.content };
+
+  // Strip XML-like draft tags for clean message reading
+  const displayContent = message.content
+    .replace(/<\/?(?:post|linkedin_post)>/gi, '')
+    .trim();
+
   const handleCopy = () => {
-    navigator.clipboard.writeText(message.content);
+    const textToCopy = draftInfo.isPostDraft ? draftInfo.draftContent : displayContent;
+    navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -34,7 +77,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
         bg: isAI ? 'canvas.subtle' : 'canvas.default',
         borderRadius: 2,
         border: '1px solid',
-        borderColor: isAI ? 'border.muted' : 'border.default',
+        borderColor: isAI ? (draftInfo.isPostDraft ? 'accent.muted' : 'border.muted') : 'border.default',
         mb: 2,
       }}
     >
@@ -97,7 +140,14 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
             mb: 1,
           }}
         >
-          <Text sx={{ fontWeight: 'bold', fontSize: 1 }}>{isAI ? 'PostPilot AI' : 'You'}</Text>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Text sx={{ fontWeight: 'bold', fontSize: 1 }}>{isAI ? 'PostPilot AI' : 'You'}</Text>
+            {isAI && draftInfo.isPostDraft && (
+              <Label variant="accent">
+                LinkedIn Draft
+              </Label>
+            )}
+          </Box>
 
           <Text sx={{ fontSize: 0, color: 'fg.muted' }}>
             {new Date(message.createdAt).toLocaleTimeString([], {
@@ -116,14 +166,14 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
             color: 'fg.default',
           }}
         >
-          {message.content}
+          {displayContent}
         </Box>
 
         {/* Action Toolbar for AI responses */}
         {isAI && (
           <Box
             sx={{
-              mt: 3,
+              mt: 2,
               pt: 2,
               borderTop: '1px solid',
               borderColor: 'border.muted',
@@ -133,15 +183,18 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
               flexWrap: 'wrap',
             }}
           >
-            <Button
-              size="small"
-              variant="primary"
-              leadingVisual={PlusIcon}
-              onClick={() => onCreateDraft(message.content)}
-              disabled={isDraftCreating}
-            >
-              Create Draft
-            </Button>
+            {/* ONLY show Create Draft button when the response is flagged as a post draft */}
+            {draftInfo.isPostDraft && (
+              <Button
+                size="small"
+                variant="primary"
+                leadingVisual={PlusIcon}
+                onClick={() => onCreateDraft(draftInfo.draftContent)}
+                disabled={isDraftCreating}
+              >
+                Create Draft
+              </Button>
+            )}
 
             <Button
               size="small"

@@ -1,7 +1,8 @@
 import { AIProvider, AIMessage } from './types';
 import { AIImproveRequest } from '@/types';
 
-const LINKEDIN_SYSTEM_PROMPT = `You are PostPilot AI, a top-tier LinkedIn creator, strategist, and copywriter.
+function buildSystemPrompt(enableSearch?: boolean): string {
+  let prompt = `You are PostPilot AI, a top-tier LinkedIn creator, strategist, and copywriter.
 Your goal is to help users brainstorm ideas, refine thoughts, and draft high-performing LinkedIn posts.
 
 LinkedIn Best Practices:
@@ -12,18 +13,43 @@ LinkedIn Best Practices:
 5. Engagement: Conclude with a thought-provoking question or discussion prompt.
 6. Hashtags: Place 3-5 relevant hashtags at the bottom when completing a post draft.
 
-Whenever you generate a post draft, make it immediately ready to copy or convert into a draft.`;
+Draft Formatting:
+- When you produce a complete, publish-ready LinkedIn post, enclose the full post content in <post> and </post> tags.
+  Example:
+  <post>
+  [Opening Hook]
+
+  [Insights and story with whitespace breaks]
+
+  [Engagement Question]
+
+  #Topic #Leadership #Innovation
+  </post>
+- Do NOT use <post> tags for general conversational replies, asking questions, or discussing idea lists. Only use them when you write an actual post ready to be drafted.`;
+
+  if (enableSearch) {
+    prompt += `\n\nWeb Search & Real-Time Knowledge:
+- Live web search and grounding is ENABLED.
+- When the user asks for latest news, industry trends, company updates, statistics, or asks you to search the web, use real-time web search capabilities to synthesize accurate, current information.
+- Never claim that you lack real-time access or cannot search the internet.`;
+  }
+
+  return prompt;
+}
 
 export async function chatWithAssistant(
   provider: AIProvider,
-  history: AIMessage[]
+  history: AIMessage[],
+  enableSearch?: boolean
 ): Promise<string> {
-  const messages: AIMessage[] = [{ role: 'system', content: LINKEDIN_SYSTEM_PROMPT }, ...history];
+  const systemPrompt = buildSystemPrompt(enableSearch);
+  const messages: AIMessage[] = [{ role: 'system', content: systemPrompt }, ...history];
 
   const response = await provider.chat({
     messages,
     temperature: 0.7,
     maxTokens: 2048,
+    enableSearch,
   });
 
   return response.content.trim();

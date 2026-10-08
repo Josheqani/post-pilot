@@ -52,6 +52,7 @@ export interface AIConfig {
   temperature: number;
   hasApiKey: boolean;
   maskedApiKey: string;
+  enableSearch?: boolean;
 }
 
 export interface SaveAIConfigInput {
@@ -60,6 +61,7 @@ export interface SaveAIConfigInput {
   model: string;
   customHeaders?: Record<string, string>;
   temperature?: number;
+  enableSearch?: boolean;
 }
 
 export interface AITestResult {
@@ -84,6 +86,8 @@ export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
   createdAt: string;
+  isPostDraft?: boolean;
+  draftContent?: string;
 }
 
 export interface User {

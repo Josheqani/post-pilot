@@ -14,6 +14,7 @@ export class OpenAICompatibleProvider implements AIProvider {
   private model: string;
   private customHeaders: Record<string, string>;
   private defaultTemperature: number;
+  private enableSearch: boolean;
 
   constructor(config: AIProviderConfig) {
     // Normalize base URL: remove trailing slash and ensure protocol
@@ -26,6 +27,7 @@ export class OpenAICompatibleProvider implements AIProvider {
     this.model = config.model.trim() || 'gpt-4o';
     this.customHeaders = config.customHeaders || {};
     this.defaultTemperature = config.temperature ?? 0.7;
+    this.enableSearch = Boolean(config.enableSearch);
   }
 
   private getChatCompletionsUrl(): string {
@@ -153,16 +155,38 @@ export class OpenAICompatibleProvider implements AIProvider {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 45000);
 
+    const shouldSearch = options.enableSearch ?? this.enableSearch;
+    const requestPayload: Record<string, unknown> = {
+      model: this.model,
+      messages: options.messages,
+      temperature: options.temperature ?? this.defaultTemperature,
+      max_tokens: options.maxTokens ?? 2048,
+    };
+
+    if (shouldSearch) {
+      // OpenRouter web search plugin: activates live internet browsing for any model
+      if (
+        this.baseUrl.includes('openrouter.ai') ||
+        this.customHeaders['HTTP-Referer'] ||
+        this.customHeaders['X-Title']
+      ) {
+        requestPayload.plugins = [{ id: 'web' }];
+      }
+
+      // Perplexity API search grounding
+      if (this.baseUrl.includes('perplexity.ai')) {
+        requestPayload.return_citations = true;
+      }
+
+      // Standard web search parameter recognized by OpenAI-compatible gateways
+      requestPayload.web_search = true;
+    }
+
     try {
       const response = await fetch(this.getChatCompletionsUrl(), {
         method: 'POST',
         headers: this.buildHeaders(),
-        body: JSON.stringify({
-          model: this.model,
-          messages: options.messages,
-          temperature: options.temperature ?? this.defaultTemperature,
-          max_tokens: options.maxTokens ?? 2048,
-        }),
+        body: JSON.stringify(requestPayload),
         signal: controller.signal,
       });
 

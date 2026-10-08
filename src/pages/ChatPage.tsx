@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Spinner } from '@primer/react';
+import { Spinner, Button } from '@primer/react';
 import { Box, Heading, Text, Flash } from '@/components/PrimerCompat';
 import { AlertIcon, SparkleIcon } from '@primer/octicons-react';
 import { useConversations } from '@/hooks/useConversations';
@@ -111,11 +111,32 @@ export const ChatPage: React.FC = () => {
         )}
 
         {error && (
-          <Flash variant="danger" sx={{ m: 3, mb: 0 }}>
-            <span style={{ marginRight: 8 }}>
-              <AlertIcon size={16} />
-            </span>
-            {error}
+          <Flash
+            variant="danger"
+            sx={{
+              m: 3,
+              mb: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 2,
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0, flex: 1 }}>
+              <span style={{ marginRight: 8, display: 'inline-flex', flexShrink: 0 }}>
+                <AlertIcon size={16} />
+              </span>
+              <Text sx={{ fontSize: 1, wordBreak: 'break-word' }}>{error}</Text>
+            </Box>
+            {(error.includes('AI Provider') || error.includes('Settings')) && (
+              <Button
+                size="small"
+                onClick={() => navigate('/settings?tab=ai')}
+                style={{ marginLeft: 8, flexShrink: 0 }}
+              >
+                Go to AI Settings
+              </Button>
+            )}
           </Flash>
         )}
 
