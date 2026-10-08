@@ -6,7 +6,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6.svg)](https://www.typescriptlang.org/)
 [![Cloudflare Workers & D1](https://img.shields.io/badge/Cloudflare-Workers_%26_D1-F38020.svg)](https://workers.cloudflare.com/)
 [![GitHub Primer](https://img.shields.io/badge/Design_System-GitHub_Primer-24292F.svg)](https://primer.style/react/)
-[![Bun](https://img.shields.io/badge/Runtime-Bun-FBF0DF.svg)](https://bun.sh/)
+[![pnpm](https://img.shields.io/badge/Package_Manager-pnpm-F69220.svg)](https://pnpm.io/)
 
 ---
 
@@ -42,7 +42,7 @@ Instead of paying for expensive monthly SaaS tools that lock your drafts into pr
 | **Frontend** | React 19, TypeScript, React Router, GitHub Primer React |
 | **Backend API** | Cloudflare Workers (TypeScript) |
 | **Database** | Cloudflare D1 (Serverless SQLite) |
-| **Package Manager** | Bun |
+| **Package Manager** | pnpm |
 | **Security** | AES-GCM 256-bit Web Crypto encryption at rest |
 
 ---
@@ -54,7 +54,7 @@ Instead of paying for expensive monthly SaaS tools that lock your drafts into pr
 ```bash
 git clone https://github.com/Josheqani/post-pilot.git
 cd post-pilot
-bun install
+pnpm install
 ```
 
 ### 2. Configure Environment
@@ -68,13 +68,13 @@ Set `ENCRYPTION_KEY` in `.env` (generate with `openssl rand -base64 32`).
 ### 3. Initialize Local Database
 
 ```bash
-bun run db:migrate:local
+pnpm run db:migrate:local
 ```
 
 ### 4. Run Development Server
 
 ```bash
-bun dev
+pnpm run dev
 ```
 
 Open **http://localhost:5173** in your browser.
@@ -88,8 +88,8 @@ Deploy your instance to Cloudflare in two steps:
 ### 1. Provision Cloudflare D1
 
 ```bash
-bunx wrangler d1 create postpilot-db
-bunx wrangler d1 migrations apply postpilot-db --remote
+pnpm dlx wrangler d1 create postpilot-db
+pnpm dlx wrangler d1 migrations apply postpilot-db --remote
 ```
 
 Add your `database_id` from the output into `wrangler.jsonc`.
@@ -97,27 +97,24 @@ Add your `database_id` from the output into `wrangler.jsonc`.
 ### 2. Set Secrets & Deploy
 
 ```bash
-bunx wrangler secret put ENCRYPTION_KEY
-bunx wrangler secret put LINKEDIN_CLIENT_ID       # Optional: for LinkedIn OAuth
-bunx wrangler secret put LINKEDIN_CLIENT_SECRET   # Optional: for LinkedIn OAuth
+pnpm dlx wrangler secret put ENCRYPTION_KEY
+pnpm dlx wrangler secret put LINKEDIN_CLIENT_ID       # Optional: for LinkedIn OAuth
+pnpm dlx wrangler secret put LINKEDIN_CLIENT_SECRET   # Optional: for LinkedIn OAuth
 
-bun run build
-bunx wrangler deploy
+pnpm run build
+pnpm dlx wrangler deploy
 ```
 
 Your self-hosted PostPilot instance will be live on your Cloudflare Workers domain or custom domain!
-
-> **Tip for Cloudflare Dashboard Git Builds**:
-> If deploying via the Cloudflare Dashboard Git integration, add the environment variable **`BUN_VERSION = 1.4.2`** in **Settings > Variables and secrets** so Cloudflare's build environment uses Bun 1.4+ to read `bun.lock`.
 
 ---
 
 ## Code Quality
 
 ```bash
-bun run lint        # ESLint check
-bun run typecheck   # Strict TypeScript check
-bun run build       # Production client & worker build
+pnpm run lint        # ESLint check
+pnpm run typecheck   # Strict TypeScript check
+pnpm run build       # Production client & worker build
 ```
 
 ---
