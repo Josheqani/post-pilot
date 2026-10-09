@@ -97,6 +97,27 @@ export async function handleAIRoutes(
       return errorResponse('API key is required', 400);
     }
 
+    let normalizedBaseUrl = body.baseUrl.trim();
+    if (normalizedBaseUrl.endsWith('/')) {
+      normalizedBaseUrl = normalizedBaseUrl.slice(0, -1);
+    }
+    if (normalizedBaseUrl.includes('chat.avalai.ir')) {
+      normalizedBaseUrl = normalizedBaseUrl.replace('chat.avalai.ir', 'api.avalai.ir');
+    }
+    if (normalizedBaseUrl.includes('api.avalai.ir') && !normalizedBaseUrl.includes('/v1')) {
+      normalizedBaseUrl = `${normalizedBaseUrl}/v1`;
+    }
+
+    let normalizedModel = body.model.trim();
+    if (normalizedBaseUrl.includes('avalai.ir')) {
+      if (normalizedModel === 'gpt-luna-6') normalizedModel = 'gpt-6-luna';
+      else if (normalizedModel === 'gpt-luna-5.6') normalizedModel = 'gpt-5.6-luna';
+      else if (normalizedModel === 'gpt-sol-6') normalizedModel = 'gpt-6-sol';
+      else if (normalizedModel === 'gpt-sol-6.1') normalizedModel = 'gpt-6.1-sol';
+      else if (normalizedModel === 'gpt-astra-6') normalizedModel = 'gpt-6-astra';
+      else if (normalizedModel === 'gpt-terra-5.6') normalizedModel = 'gpt-5.6-terra';
+    }
+
     const mergedHeaders = {
       ...(body.customHeaders || {}),
       ...(body.enableSearch !== undefined ? { _enable_search: body.enableSearch ? 'true' : 'false' } : {}),
@@ -118,9 +139,9 @@ export async function handleAIRoutes(
            WHERE id = ?`
       )
         .bind(
-          body.baseUrl.trim(),
+          normalizedBaseUrl,
           encryptedKey,
-          body.model.trim(),
+          normalizedModel,
           headersJson,
           temp,
           now,
@@ -138,9 +159,9 @@ export async function handleAIRoutes(
           id,
           userId,
           'openai-compatible',
-          body.baseUrl.trim(),
+          normalizedBaseUrl,
           encryptedKey,
-          body.model.trim(),
+          normalizedModel,
           headersJson,
           temp,
           now,

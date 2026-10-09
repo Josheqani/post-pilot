@@ -25,6 +25,7 @@ export interface AIGenerateOptions {
   systemPrompt?: string;
   temperature?: number;
   maxTokens?: number;
+  enableSearch?: boolean;
 }
 
 export interface AIProviderConfig {

@@ -28,6 +28,64 @@ export const AIProviderSettings: React.FC = () => {
     }
   }, [config]);
 
+  const PRESETS = [
+    {
+      name: 'AvalAI (Live Search)',
+      baseUrl: 'https://api.avalai.ir/v1',
+      model: 'gpt-6-luna',
+      enableSearch: true,
+    },
+    {
+      name: 'OpenAI',
+      baseUrl: 'https://api.openai.com/v1',
+      model: 'gpt-4o',
+      enableSearch: false,
+    },
+    {
+      name: 'OpenRouter',
+      baseUrl: 'https://openrouter.ai/api/v1',
+      model: 'anthropic/claude-3.5-sonnet',
+      enableSearch: true,
+    },
+    {
+      name: 'Groq',
+      baseUrl: 'https://api.groq.com/openai/v1',
+      model: 'llama-3.3-70b-versatile',
+      enableSearch: false,
+    },
+  ];
+
+  const normalizeInputs = (url: string, mdl: string) => {
+    let cleanUrl = url.trim();
+    if (cleanUrl.endsWith('/')) {
+      cleanUrl = cleanUrl.slice(0, -1);
+    }
+    if (cleanUrl.includes('chat.avalai.ir')) {
+      cleanUrl = cleanUrl.replace('chat.avalai.ir', 'api.avalai.ir');
+    }
+    if (cleanUrl.includes('api.avalai.ir') && !cleanUrl.includes('/v1')) {
+      cleanUrl = `${cleanUrl}/v1`;
+    }
+
+    let cleanModel = mdl.trim();
+    if (cleanUrl.includes('avalai.ir')) {
+      if (cleanModel === 'gpt-luna-6') cleanModel = 'gpt-6-luna';
+      else if (cleanModel === 'gpt-luna-5.6') cleanModel = 'gpt-5.6-luna';
+      else if (cleanModel === 'gpt-sol-6') cleanModel = 'gpt-6-sol';
+      else if (cleanModel === 'gpt-sol-6.1') cleanModel = 'gpt-6.1-sol';
+      else if (cleanModel === 'gpt-astra-6') cleanModel = 'gpt-6-astra';
+      else if (cleanModel === 'gpt-terra-5.6') cleanModel = 'gpt-5.6-terra';
+    }
+
+    return { cleanUrl, cleanModel };
+  };
+
+  const applyPreset = (preset: (typeof PRESETS)[number]) => {
+    setBaseUrl(preset.baseUrl);
+    setModel(preset.model);
+    setEnableSearch(preset.enableSearch);
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSuccessNotice(null);
@@ -42,11 +100,15 @@ export const AIProviderSettings: React.FC = () => {
       }
     }
 
+    const { cleanUrl, cleanModel } = normalizeInputs(baseUrl, model);
+    setBaseUrl(cleanUrl);
+    setModel(cleanModel);
+
     try {
       await saveConfig({
-        baseUrl,
+        baseUrl: cleanUrl,
         apiKey: apiKey.trim() || undefined,
-        model,
+        model: cleanModel,
         temperature: parseFloat(temperature) || 0.7,
         customHeaders: parsedHeaders,
         enableSearch,
@@ -69,10 +131,14 @@ export const AIProviderSettings: React.FC = () => {
       }
     }
 
+    const { cleanUrl, cleanModel } = normalizeInputs(baseUrl, model);
+    setBaseUrl(cleanUrl);
+    setModel(cleanModel);
+
     await testConnection({
-      baseUrl,
+      baseUrl: cleanUrl,
       apiKey: apiKey.trim() || undefined,
-      model,
+      model: cleanModel,
       customHeaders: parsedHeaders,
     });
   };
@@ -126,6 +192,25 @@ export const AIProviderSettings: React.FC = () => {
         </Flash>
       )}
 
+      {/* Quick Presets */}
+      <Box sx={{ mb: 3, p: 3, border: '1px solid', borderColor: 'border.default', borderRadius: 2, bg: 'canvas.subtle' }}>
+        <Text sx={{ fontSize: 0, fontWeight: 600, display: 'block', mb: 2, color: 'fg.muted' }}>
+          Quick Configuration Presets:
+        </Text>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+          {PRESETS.map((p) => (
+            <Button
+              key={p.name}
+              size="small"
+              type="button"
+              onClick={() => applyPreset(p)}
+            >
+              {p.name}
+            </Button>
+          ))}
+        </Box>
+      </Box>
+
       <form onSubmit={handleSave}>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           <FormControl required>
@@ -137,8 +222,7 @@ export const AIProviderSettings: React.FC = () => {
               block
             />
             <FormControl.Caption>
-              Must point to an OpenAI-compatible /v1 endpoint (e.g. https://api.openai.com/v1,
-              https://api.groq.com/openai/v1, or http://localhost:11434/v1).
+              Must point to an OpenAI-compatible /v1 endpoint (e.g. <code>https://api.avalai.ir/v1</code>, <code>https://api.openai.com/v1</code>, or <code>https://api.groq.com/openai/v1</code>).
             </FormControl.Caption>
           </FormControl>
 
@@ -167,8 +251,7 @@ export const AIProviderSettings: React.FC = () => {
               block
             />
             <FormControl.Caption>
-              Any model supported by your endpoint (e.g. gpt-4o, gpt-4o-mini,
-              llama-3.3-70b-versatile, claude-3-5-sonnet).
+              Any model supported by your endpoint (e.g. <code>gpt-6-luna</code> for AvalAI web search, <code>gpt-4o</code>, <code>claude-3-5-sonnet</code>).
             </FormControl.Caption>
           </FormControl>
 
@@ -228,7 +311,7 @@ export const AIProviderSettings: React.FC = () => {
                 <Label variant="accent">Search</Label>
               </Box>
               <Text sx={{ fontSize: 0, color: 'fg.muted', display: 'block', mt: 1, lineHeight: 1.5 }}>
-                Enables real-time internet search for your AI model. For OpenRouter, automatically sends the web plugin (<code>plugins: [&#123; id: 'web' &#125;]</code>). For Perplexity, enables citations and search grounding. Instructs the model to cite up-to-date facts.
+                Enables real-time internet search for your AI model. Automatically configured for <strong>AvalAI</strong> (e.g. <code>gpt-6-luna</code>, <code>gpt-5.6-luna</code> using built-in web search tools), <strong>OpenRouter</strong> (<code>plugins: [&#123; id: 'web' &#125;]</code>), and <strong>Perplexity</strong> (search grounding & citations).
               </Text>
             </label>
           </Box>

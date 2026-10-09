@@ -22,9 +22,29 @@ export class OpenAICompatibleProvider implements AIProvider {
     if (url.endsWith('/')) {
       url = url.slice(0, -1);
     }
+    // If user provided AvalAI web UI host (chat.avalai.ir), automatically route to the API host
+    if (url.includes('chat.avalai.ir')) {
+      url = url.replace('chat.avalai.ir', 'api.avalai.ir');
+    }
+    // AvalAI endpoints require /v1 prefix; if omitted (e.g. https://api.avalai.ir), append /v1
+    if (url.includes('api.avalai.ir') && !url.includes('/v1')) {
+      url = `${url}/v1`;
+    }
     this.baseUrl = url;
     this.apiKey = config.apiKey.trim();
-    this.model = config.model.trim() || 'gpt-4o';
+
+    // Normalize model name (e.g. user enters gpt-luna-6 instead of gpt-6-luna)
+    let modelName = config.model.trim() || 'gpt-4o';
+    const isAvalai = this.baseUrl.includes('avalai.ir');
+    if (isAvalai) {
+      if (modelName === 'gpt-luna-6') modelName = 'gpt-6-luna';
+      else if (modelName === 'gpt-luna-5.6') modelName = 'gpt-5.6-luna';
+      else if (modelName === 'gpt-sol-6') modelName = 'gpt-6-sol';
+      else if (modelName === 'gpt-sol-6.1') modelName = 'gpt-6.1-sol';
+      else if (modelName === 'gpt-astra-6') modelName = 'gpt-6-astra';
+      else if (modelName === 'gpt-terra-5.6') modelName = 'gpt-5.6-terra';
+    }
+    this.model = modelName;
     this.customHeaders = config.customHeaders || {};
     this.defaultTemperature = config.temperature ?? 0.7;
     this.enableSearch = Boolean(config.enableSearch);
@@ -116,14 +136,11 @@ export class OpenAICompatibleProvider implements AIProvider {
         };
       }
 
-      const data = (await response.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
-      };
-
-      const reply = data.choices?.[0]?.message?.content?.trim();
+      const data = (await response.json()) as Record<string, unknown>;
+      const { content } = extractResponseContent(data);
       return {
         success: true,
-        message: `Successfully connected to ${this.model} (${latencyMs}ms). Reply: "${reply || 'OK'}"`,
+        message: `Successfully connected to ${this.model} (${latencyMs}ms). Reply: "${content || 'OK'}"`,
         latencyMs,
         model: this.model,
       };
@@ -155,7 +172,15 @@ export class OpenAICompatibleProvider implements AIProvider {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 45000);
 
-    const shouldSearch = options.enableSearch ?? this.enableSearch;
+    const hasSearchIntent = [...options.messages].some(
+      (m) =>
+        m.role === 'user' &&
+        /\b(search (the web|online|internet|google|bing)|look up on the web|latest news|current news|breaking news)\b/i.test(
+          m.content
+        )
+    );
+    const shouldSearch = options.enableSearch ?? (this.enableSearch || hasSearchIntent);
+
     const requestPayload: Record<string, unknown> = {
       model: this.model,
       messages: options.messages,
@@ -164,22 +189,46 @@ export class OpenAICompatibleProvider implements AIProvider {
     };
 
     if (shouldSearch) {
-      // OpenRouter web search plugin: activates live internet browsing for any model
-      if (
+      const isAvalai = this.baseUrl.includes('avalai.ir');
+      const isOpenRouter =
         this.baseUrl.includes('openrouter.ai') ||
-        this.customHeaders['HTTP-Referer'] ||
-        this.customHeaders['X-Title']
-      ) {
+        Boolean(this.customHeaders['HTTP-Referer']) ||
+        Boolean(this.customHeaders['X-Title']);
+      const isPerplexity = this.baseUrl.includes('perplexity.ai');
+
+      if (isOpenRouter) {
+        // OpenRouter web search plugin: activates live internet browsing for any model
         requestPayload.plugins = [{ id: 'web' }];
       }
 
-      // Perplexity API search grounding
-      if (this.baseUrl.includes('perplexity.ai')) {
+      if (isPerplexity) {
         requestPayload.return_citations = true;
       }
 
-      // Standard web search parameter recognized by OpenAI-compatible gateways
-      requestPayload.web_search = true;
+      if (isAvalai) {
+        // AvalAI Tool Search specification
+        if (this.model.toLowerCase().startsWith('gemini')) {
+          requestPayload.tools = [
+            {
+              googleSearch: {
+                detail_level: 'high',
+              },
+            },
+          ];
+        } else {
+          requestPayload.tools = [
+            {
+              type: 'web_search',
+              search_context_size: 'medium',
+            },
+          ];
+          requestPayload.tool_choice = 'auto';
+        }
+      } else {
+        // Standard OpenAI-compatible gateways tool-based web search
+        requestPayload.tools = [{ type: 'web_search' }];
+        requestPayload.web_search = true;
+      }
     }
 
     try {
@@ -206,29 +255,21 @@ export class OpenAICompatibleProvider implements AIProvider {
         throw new Error(message);
       }
 
-      const data = (await response.json()) as {
-        choices?: Array<{
-          message?: { content?: string };
-          finish_reason?: string;
-        }>;
-        usage?: {
-          prompt_tokens?: number;
-          completion_tokens?: number;
-          total_tokens?: number;
-        };
-      };
+      const data = (await response.json()) as Record<string, unknown>;
+      const { content, finishReason } = extractResponseContent(data);
 
-      const choice = data.choices?.[0];
-      const content = choice?.message?.content ?? '';
+      const usage = data.usage as
+        | { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
+        | undefined;
 
       return {
         content,
-        finishReason: choice?.finish_reason,
-        usage: data.usage
+        finishReason,
+        usage: usage
           ? {
-              promptTokens: data.usage.prompt_tokens,
-              completionTokens: data.usage.completion_tokens,
-              totalTokens: data.usage.total_tokens,
+              promptTokens: usage.prompt_tokens,
+              completionTokens: usage.completion_tokens,
+              totalTokens: usage.total_tokens,
             }
           : undefined,
       };
@@ -257,6 +298,7 @@ export class OpenAICompatibleProvider implements AIProvider {
       messages,
       temperature: options.temperature,
       maxTokens: options.maxTokens,
+      enableSearch: options.enableSearch,
     });
   }
 
@@ -415,4 +457,118 @@ What are you building right now that's ready to see the world?
       },
     };
   }
+}
+
+interface ExtractedContent {
+  content: string;
+  finishReason?: string;
+}
+
+/**
+ * Robust content and citation extractor supporting OpenAI, AvalAI, and compatible gateways.
+ * Handles string content, arrays of content/output parts, top-level output_text, and URL citations.
+ */
+function extractResponseContent(data: Record<string, unknown>): ExtractedContent {
+  let text = '';
+  let finishReason: string | undefined;
+  const citations: Array<{ url: string; title?: string }> = [];
+
+  // 1. Check top-level output_text (used by AvalAI Responses API & some endpoints)
+  if (typeof data.output_text === 'string' && data.output_text.trim()) {
+    text = data.output_text.trim();
+  }
+
+  const choices = Array.isArray(data.choices) ? (data.choices as Array<Record<string, unknown>>) : [];
+  const firstChoice = choices[0];
+
+  if (firstChoice) {
+    if (typeof firstChoice.finish_reason === 'string') {
+      finishReason = firstChoice.finish_reason;
+    }
+
+    const message = firstChoice.message as Record<string, unknown> | undefined;
+    if (!text && message) {
+      if (typeof message.content === 'string') {
+        text = message.content;
+      } else if (Array.isArray(message.content)) {
+        // Handle array of content parts
+        for (const part of message.content) {
+          if (typeof part === 'string') {
+            text += (text ? '\n' : '') + part;
+          } else if (part && typeof part === 'object') {
+            const partObj = part as Record<string, unknown>;
+            if (typeof partObj.text === 'string') {
+              text += (text ? '\n' : '') + partObj.text;
+            }
+            if (Array.isArray(partObj.annotations)) {
+              for (const ann of partObj.annotations as Array<Record<string, unknown>>) {
+                if (typeof ann?.url === 'string') {
+                  citations.push({
+                    url: ann.url,
+                    title: typeof ann.title === 'string' ? ann.title : undefined,
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // 2. Check top-level or choice annotations (AvalAI, Perplexity, etc.)
+  const rawAnnotations =
+    (data.annotations as unknown[]) ||
+    (firstChoice?.annotations as unknown[]) ||
+    ((firstChoice?.message as Record<string, unknown>)?.annotations as unknown[]);
+
+  if (Array.isArray(rawAnnotations)) {
+    for (const ann of rawAnnotations as Array<Record<string, unknown>>) {
+      if (typeof ann?.url === 'string' && !citations.some((c) => c.url === ann.url)) {
+        citations.push({
+          url: ann.url,
+          title: typeof ann.title === 'string' ? ann.title : undefined,
+        });
+      }
+    }
+  }
+
+  // 3. Fallback for tool_calls if content was empty
+  if (!text) {
+    const message = firstChoice?.message as Record<string, unknown> | undefined;
+    if (Array.isArray(message?.tool_calls) && message.tool_calls.length > 0) {
+      for (const call of message.tool_calls as Array<Record<string, unknown>>) {
+        const fn = call.function as Record<string, unknown> | undefined;
+        if (fn?.arguments && typeof fn.arguments === 'string') {
+          try {
+            const parsed = JSON.parse(fn.arguments);
+            if (parsed.query) {
+              text += `Searched for: "${parsed.query}"\n`;
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
+    }
+  }
+
+  // 4. Append formatted source citations if present and not already embedded
+  if (citations.length > 0) {
+    const unreferenced = citations.filter((c) => !text.includes(c.url));
+    if (unreferenced.length > 0) {
+      const sourcesBlock =
+        '\n\n**Sources:**\n' +
+        unreferenced
+          .slice(0, 5)
+          .map((c, i) => `${i + 1}. [${c.title || c.url}](${c.url})`)
+          .join('\n');
+      text += sourcesBlock;
+    }
+  }
+
+  return {
+    content: text.trim(),
+    finishReason,
+  };
 }
