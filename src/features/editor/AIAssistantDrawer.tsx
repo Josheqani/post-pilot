@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Button, Select, Spinner } from '@primer/react';
+import { Button, Select } from '@primer/react';
 import { Box, Heading, Text, Flash } from '@/components/PrimerCompat';
 import { SparkleIcon, SyncIcon, ZapIcon, HashIcon, CheckIcon, BookmarkIcon } from '@primer/octicons-react';
+import { ThinkingOrbLoader } from '@/components/ThinkingOrbLoader';
 import { api } from '@/services/api';
 import { AIImproveAction } from '@/types';
 
@@ -185,9 +186,12 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
 
       {/* Loading state */}
       {isLoading && (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, color: 'fg.muted', py: 1 }}>
-          <Spinner size="small" />
-          <Text sx={{ fontSize: 0 }}>Generating AI enhancement with your provider...</Text>
+        <Box sx={{ py: 1 }}>
+          <ThinkingOrbLoader
+            minimal
+            prompt={activeAction || 'Improving post content...'}
+            size={20}
+          />
         </Box>
       )}
 

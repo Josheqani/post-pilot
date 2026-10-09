@@ -7,6 +7,7 @@ import { useConversations } from '@/hooks/useConversations';
 import { ConversationSidebar } from '@/features/chat/ConversationSidebar';
 import { ChatMessageItem } from '@/features/chat/ChatMessageItem';
 import { ChatInput } from '@/features/chat/ChatInput';
+import { ThinkingOrbLoader } from '@/components/ThinkingOrbLoader';
 import { api } from '@/services/api';
 
 export const ChatPage: React.FC = () => {
@@ -27,6 +28,12 @@ export const ChatPage: React.FC = () => {
 
   const [isDraftCreating, setIsDraftCreating] = React.useState(false);
   const [draftNotice, setDraftNotice] = React.useState<string | null>(null);
+  const [lastSentPrompt, setLastSentPrompt] = React.useState<string>('');
+
+  const handleSendMessage = async (content: string) => {
+    setLastSentPrompt(content);
+    await sendMessage(content);
+  };
 
   const handleCreateDraft = async (content: string, title?: string) => {
     setIsDraftCreating(true);
@@ -194,25 +201,20 @@ export const ChatPage: React.FC = () => {
           )}
 
           {isSending && (
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2,
-                p: 3,
-                bg: 'canvas.subtle',
-                borderRadius: 2,
-                color: 'fg.muted',
-              }}
-            >
-              <Spinner size="small" />
-              <Text sx={{ fontSize: 1 }}>PostPilot AI is writing...</Text>
+            <Box sx={{ mb: 2 }}>
+              <ThinkingOrbLoader
+                prompt={
+                  lastSentPrompt ||
+                  (messages[messages.length - 1]?.role === 'user' ? messages[messages.length - 1]?.content : undefined)
+                }
+                size={32}
+              />
             </Box>
           )}
         </Box>
 
         {/* Input Footer */}
-        <ChatInput onSend={sendMessage} isLoading={isSending} />
+        <ChatInput onSend={handleSendMessage} isLoading={isSending} />
       </Box>
     </Box>
   );
