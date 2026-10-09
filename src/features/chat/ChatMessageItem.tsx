@@ -254,7 +254,14 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                 <ThinkingOrb
                   state="solving"
                   size={20}
-                  theme={colorMode === 'night' ? 'dark' : colorMode === 'day' ? 'light' : 'auto'}
+                  theme={
+                    colorMode === 'night' ||
+                    (colorMode === 'auto' &&
+                      typeof window !== 'undefined' &&
+                      window.matchMedia('(prefers-color-scheme: dark)').matches)
+                      ? 'dark'
+                      : 'light'
+                  }
                 />
                 <strong>Thinking Process ({thinkingContent.split(/\s+/).length} words)</strong>
               </span>

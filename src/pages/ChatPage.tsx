@@ -21,7 +21,7 @@ export const ChatPage: React.FC = () => {
     isLoadingMessages,
     isSending,
     error,
-    createConversation,
+    startNewChat,
     deleteConversation,
     sendMessage,
   } = useConversations();
@@ -29,6 +29,11 @@ export const ChatPage: React.FC = () => {
   const [isDraftCreating, setIsDraftCreating] = React.useState(false);
   const [draftNotice, setDraftNotice] = React.useState<string | null>(null);
   const [lastSentPrompt, setLastSentPrompt] = React.useState<string>('');
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isSending]);
 
   const handleSendMessage = async (content: string) => {
     setLastSentPrompt(content);
@@ -74,7 +79,7 @@ export const ChatPage: React.FC = () => {
         conversations={conversations}
         activeId={activeConversationId}
         onSelect={setActiveConversationId}
-        onNew={() => createConversation()}
+        onNew={startNewChat}
         onDelete={deleteConversation}
         isLoading={isLoadingList}
       />
@@ -211,6 +216,8 @@ export const ChatPage: React.FC = () => {
               />
             </Box>
           )}
+
+          <div ref={messagesEndRef} />
         </Box>
 
         {/* Input Footer */}

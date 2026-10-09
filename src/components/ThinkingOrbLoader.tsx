@@ -11,6 +11,8 @@ import {
   PencilIcon,
 } from '@primer/octicons-react';
 
+import { Box, Text } from '@/components/PrimerCompat';
+
 interface Step {
   label: string;
   state: OrbState;
@@ -101,38 +103,48 @@ export const ThinkingOrbLoader: React.FC<ThinkingOrbLoaderProps> = ({
 
   const activeStep = steps[currentStepIndex] || steps[0];
   const activeState: OrbState = activeStep ? activeStep.state : 'working';
-  const orbTheme: 'auto' | 'dark' | 'light' =
-    colorMode === 'night' ? 'dark' : colorMode === 'day' ? 'light' : 'auto';
+
+  const isDark =
+    colorMode === 'night' ||
+    (colorMode === 'auto' &&
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-color-scheme: dark)').matches) ||
+    (typeof document !== 'undefined' &&
+      document.documentElement.getAttribute('data-color-mode') === 'dark');
+
+  const orbTheme: 'dark' | 'light' = isDark ? 'dark' : 'light';
 
   if (minimal) {
     return (
-      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+      <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
         <ThinkingOrb state={activeState} size={20} theme={orbTheme} />
-        <span style={{ fontSize: '13px', color: 'var(--fgColor-muted, #656d76)' }}>
+        <Text sx={{ fontSize: 0, color: 'fg.muted' }}>
           {activeStep?.label || 'Thinking...'} ({elapsedSeconds}s)
-        </span>
-      </div>
+        </Text>
+      </Box>
     );
   }
 
   return (
-    <div
-      style={{
+    <Box
+      sx={{
         display: 'flex',
         flexDirection: 'column',
-        gap: '8px',
-        padding: '12px 14px',
-        backgroundColor: 'var(--bgColor-subtle, #f6f8fa)',
-        border: '1px solid var(--borderColor-muted, #d0d7de)',
-        borderRadius: '8px',
-        fontSize: '13px',
+        gap: 2,
+        p: 3,
+        bg: 'canvas.subtle',
+        border: '1px solid',
+        borderColor: 'border.default',
+        borderRadius: 2,
+        fontSize: 1,
+        color: 'fg.default',
       }}
     >
       {/* Top Header: Orb + Active Step + Timer + Toggle */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div
-            style={{
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box
+            sx={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -142,30 +154,33 @@ export const ThinkingOrbLoader: React.FC<ThinkingOrbLoaderProps> = ({
             }}
           >
             <ThinkingOrb state={activeState} size={size} theme={orbTheme} />
-          </div>
+          </Box>
 
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontWeight: 600, color: 'var(--fgColor-default, #1f2328)' }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Text sx={{ fontWeight: 'bold', fontSize: 1, color: 'fg.default' }}>
                 {activeStep?.label || 'PostPilot AI is working...'}
-              </span>
-              <span
-                style={{
-                  fontSize: '11px',
-                  color: 'var(--fgColor-muted, #656d76)',
-                  backgroundColor: 'var(--bgColor-neutral-muted, rgba(175, 184, 193, 0.2))',
-                  padding: '1px 5px',
+              </Text>
+              <Text
+                sx={{
+                  fontSize: 0,
+                  color: 'fg.muted',
+                  bg: 'canvas.default',
+                  border: '1px solid',
+                  borderColor: 'border.muted',
+                  px: '6px',
+                  py: '1px',
                   borderRadius: '10px',
                 }}
               >
                 {elapsedSeconds}s
-              </span>
-            </div>
-            <span style={{ fontSize: '11px', color: 'var(--fgColor-muted, #656d76)' }}>
-              Action: <code style={{ fontSize: '11px' }}>{activeState}</code> • Step {currentStepIndex + 1} of {steps.length}
-            </span>
-          </div>
-        </div>
+              </Text>
+            </Box>
+            <Text sx={{ fontSize: 0, color: 'fg.muted', mt: '2px' }}>
+              Action: <code>{activeState}</code> • Step {currentStepIndex + 1} of {steps.length}
+            </Text>
+          </Box>
+        </Box>
 
         <button
           type="button"
@@ -176,7 +191,8 @@ export const ThinkingOrbLoader: React.FC<ThinkingOrbLoaderProps> = ({
             gap: '4px',
             background: 'none',
             border: 'none',
-            color: 'var(--fgColor-muted, #656d76)',
+            color: 'inherit',
+            opacity: 0.8,
             cursor: 'pointer',
             fontSize: '12px',
             padding: '4px 6px',
@@ -187,18 +203,19 @@ export const ThinkingOrbLoader: React.FC<ThinkingOrbLoaderProps> = ({
           <span>Steps</span>
           {isExpanded ? <ChevronDownIcon size={14} /> : <ChevronRightIcon size={14} />}
         </button>
-      </div>
+      </Box>
 
       {/* Expandable Activity Timeline */}
       {isExpanded && (
-        <div
-          style={{
-            marginTop: '6px',
-            paddingTop: '8px',
-            borderTop: '1px dashed var(--borderColor-muted, #d0d7de)',
+        <Box
+          sx={{
+            mt: 1,
+            pt: 2,
+            borderTop: '1px dashed',
+            borderColor: 'border.muted',
             display: 'flex',
             flexDirection: 'column',
-            gap: '6px',
+            gap: 2,
           }}
         >
           {steps.map((step, idx) => {
@@ -206,23 +223,23 @@ export const ThinkingOrbLoader: React.FC<ThinkingOrbLoaderProps> = ({
             const isCurrent = idx === currentStepIndex;
 
             return (
-              <div
+              <Box
                 key={step.label}
-                style={{
+                sx={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
-                  fontSize: '12px',
+                  gap: 2,
+                  fontSize: 0,
                   color: isCurrent
-                    ? 'var(--fgColor-accent, #0969da)'
+                    ? 'accent.fg'
                     : isCompleted
-                      ? 'var(--fgColor-success, #1a7f37)'
-                      : 'var(--fgColor-muted, #8c959f)',
-                  fontWeight: isCurrent ? 600 : 400,
+                      ? 'success.fg'
+                      : 'fg.muted',
+                  fontWeight: isCurrent ? 'bold' : 'normal',
                 }}
               >
-                <div
-                  style={{
+                <Box
+                  sx={{
                     width: '16px',
                     height: '16px',
                     display: 'flex',
@@ -234,39 +251,39 @@ export const ThinkingOrbLoader: React.FC<ThinkingOrbLoaderProps> = ({
                   {isCompleted ? (
                     <CheckIcon size={14} />
                   ) : isCurrent ? (
-                    <span
-                      style={{
+                    <Box
+                      sx={{
                         width: '8px',
                         height: '8px',
                         borderRadius: '50%',
-                        backgroundColor: 'var(--fgColor-accent, #0969da)',
-                        boxShadow: '0 0 0 2px var(--bgColor-accent-muted, #ddf4ff)',
+                        bg: 'accent.fg',
+                        boxShadow: '0 0 0 2px rgba(9, 105, 218, 0.3)',
                       }}
                     />
                   ) : (
-                    <span
-                      style={{
+                    <Box
+                      sx={{
                         width: '6px',
                         height: '6px',
                         borderRadius: '50%',
-                        backgroundColor: 'var(--borderColor-muted, #d0d7de)',
+                        bg: 'border.default',
                       }}
                     />
                   )}
-                </div>
+                </Box>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   {step.icon === 'search' && <GlobeIcon size={12} />}
                   {step.icon === 'link' && <LinkIcon size={12} />}
                   {step.icon === 'plan' && <LightBulbIcon size={12} />}
                   {step.icon === 'compose' && <PencilIcon size={12} />}
-                  <span>{step.label}</span>
-                </div>
-              </div>
+                  <Text>{step.label}</Text>
+                </Box>
+              </Box>
             );
           })}
-        </div>
+        </Box>
       )}
-    </div>
+    </Box>
   );
 };

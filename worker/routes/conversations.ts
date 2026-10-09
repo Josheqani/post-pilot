@@ -290,7 +290,33 @@ export async function handleConversationRoutes(
         content: m.content,
       }));
 
-      const reply = await chatWithAssistant(provider, history, enableSearch);
+      let reply = await chatWithAssistant(provider, history, enableSearch);
+
+      // If reply is empty (e.g. tool execution issue or proxy limitation), retry without search grounding
+      if (!reply || !reply.trim()) {
+        if (enableSearch) {
+          try {
+            reply = await chatWithAssistant(provider, history, false);
+          } catch {
+            // ignore retry error
+          }
+        }
+      }
+
+      // If reply is still empty, provide an intelligent fallback or clean error
+      if (!reply || !reply.trim()) {
+        const lastUser = userContent.toLowerCase().trim();
+        if (/^(hey|hi|hello|greetings|howdy|sup)[\s!.?]*$/i.test(lastUser)) {
+          reply = 'Hello! I am PostPilot AI, your LinkedIn content strategist. How can I help you brainstorm hooks, structure ideas, or draft posts today?';
+        } else {
+          // Do not write empty message to database
+          await env.DB.prepare('DELETE FROM messages WHERE id = ?').bind(userMsgId).run();
+          return errorResponse(
+            'The AI provider returned an empty response. Please verify that your chosen model supports chat completions or disable web search in Settings > AI Provider.',
+            502
+          );
+        }
+      }
 
       // Check if the reply is a LinkedIn post draft
       const draftInfo = detectPostDraft(reply);

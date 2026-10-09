@@ -84,7 +84,26 @@ export function useConversations() {
     }
   }, [activeConversationId, fetchMessages]);
 
+  const startNewChat = () => {
+    setActiveConversationId(null);
+    setMessages([]);
+  };
+
   const createConversation = async (title?: string): Promise<Conversation> => {
+    // If the active conversation already has no messages, just reuse it!
+    if (activeConversationId && messages.length === 0) {
+      const active = conversations.find((c) => c.id === activeConversationId);
+      if (active) return active;
+    }
+
+    // Reuse any existing conversation that has zero messages
+    const existingEmpty = conversations.find((c) => c.messageCount === 0);
+    if (existingEmpty) {
+      setActiveConversationId(existingEmpty.id);
+      setMessages([]);
+      return existingEmpty;
+    }
+
     const newConv = await api.conversations.create(title);
     newlyCreatedConvIdRef.current = newConv.id;
     setConversations((prev) => [newConv, ...prev]);
@@ -144,8 +163,12 @@ export function useConversations() {
 
   const sendMessage = async (content: string) => {
     if (!activeConversationId) {
-      // Auto-create conversation first
-      const newConv = await createConversation();
+      // Auto-create conversation with preview title from user's first message
+      const initialTitle = content.slice(0, 35).trim() + (content.length > 35 ? '...' : '');
+      const newConv = await api.conversations.create(initialTitle);
+      newlyCreatedConvIdRef.current = newConv.id;
+      setConversations((prev) => [newConv, ...prev]);
+      setActiveConversationId(newConv.id);
       return sendMessageToConv(newConv.id, content);
     }
     return sendMessageToConv(activeConversationId, content);
@@ -161,6 +184,7 @@ export function useConversations() {
     isSending,
     error,
     createConversation,
+    startNewChat,
     deleteConversation,
     sendMessage,
     refreshConversations: fetchConversations,

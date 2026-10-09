@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Header, IconButton, Label } from '@primer/react';
+import { IconButton, Label } from '@primer/react';
+import { Box } from '@/components/PrimerCompat';
 import {
   CommentDiscussionIcon,
   RepoIcon,
@@ -37,114 +38,162 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   };
 
   return (
-    <Header
-      style={{ padding: '8px 16px', borderBottom: '1px solid var(--borderColor-default, #d0d7de)' }}
+    <Box
+      as="header"
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        px: 3,
+        py: 2,
+        bg: 'canvas.default',
+        borderBottom: '1px solid',
+        borderColor: 'border.default',
+        color: 'fg.default',
+        gap: 1,
+      }}
     >
       {/* Brand */}
-      <Header.Item>
-        <Header.Link
-          as={Link}
-          to="/posts"
-          style={{
+      <Link to="/posts" style={{ textDecoration: 'none', color: 'inherit' }}>
+        <Box
+          sx={{
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            fontSize: '16px',
+            gap: 2,
+            fontSize: 2,
             fontWeight: 'bold',
-            color: 'var(--fgColor-default, #1f2328)',
-            textDecoration: 'none',
+            color: 'fg.default',
+            mr: 3,
+            px: 2,
+            py: 1,
+            borderRadius: 2,
+            '&:hover': {
+              color: 'fg.default',
+            },
           }}
         >
           <ShareIcon size={20} />
           <span>PostPilot</span>
-        </Header.Link>
-      </Header.Item>
+        </Box>
+      </Link>
 
       {/* Nav items */}
-      <Header.Item style={{ marginLeft: '24px' }}>
-        <Header.Link
-          as={Link}
-          to="/chat"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontWeight: isCurrent('/chat') ? 'bold' : 'normal',
-            color: isCurrent('/chat')
-              ? 'var(--fgColor-default, #1f2328)'
-              : 'var(--fgColor-muted, #656d76)',
-            textDecoration: 'none',
-          }}
-        >
-          <CommentDiscussionIcon size={16} />
-          <span>Chat</span>
-        </Header.Link>
-      </Header.Item>
+      <Box
+        as="nav"
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+        }}
+      >
+        <Link to="/chat" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              px: 2,
+              py: 1,
+              borderRadius: 2,
+              fontSize: 1,
+              fontWeight: isCurrent('/chat') ? 'bold' : 'normal',
+              color: isCurrent('/chat') ? 'fg.default' : 'fg.muted',
+              bg: isCurrent('/chat') ? 'canvas.subtle' : 'transparent',
+              '&:hover': {
+                color: 'fg.default',
+                bg: 'canvas.subtle',
+              },
+            }}
+          >
+            <CommentDiscussionIcon size={16} />
+            <span>Chat</span>
+          </Box>
+        </Link>
 
-      <Header.Item>
-        <Header.Link
-          as={Link}
-          to="/posts"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontWeight: isCurrent('/posts') && currentPath !== '/posts/new' ? 'bold' : 'normal',
-            color:
-              isCurrent('/posts') && currentPath !== '/posts/new'
-                ? 'var(--fgColor-default, #1f2328)'
-                : 'var(--fgColor-muted, #656d76)',
-            textDecoration: 'none',
-          }}
-        >
-          <RepoIcon size={16} />
-          <span>Posts</span>
-        </Header.Link>
-      </Header.Item>
+        <Link to="/posts" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              px: 2,
+              py: 1,
+              borderRadius: 2,
+              fontSize: 1,
+              fontWeight: isCurrent('/posts') && currentPath !== '/posts/new' ? 'bold' : 'normal',
+              color:
+                isCurrent('/posts') && currentPath !== '/posts/new' ? 'fg.default' : 'fg.muted',
+              bg:
+                isCurrent('/posts') && currentPath !== '/posts/new'
+                  ? 'canvas.subtle'
+                  : 'transparent',
+              '&:hover': {
+                color: 'fg.default',
+                bg: 'canvas.subtle',
+              },
+            }}
+          >
+            <RepoIcon size={16} />
+            <span>Posts</span>
+          </Box>
+        </Link>
 
-      <Header.Item>
-        <Header.Link
-          as={Link}
-          to="/posts/new"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontWeight: isCurrent('/posts/new') ? 'bold' : 'normal',
-            color: isCurrent('/posts/new')
-              ? 'var(--fgColor-default, #1f2328)'
-              : 'var(--fgColor-muted, #656d76)',
-            textDecoration: 'none',
-          }}
-        >
-          <PlusIcon size={16} />
-          <span>New Post</span>
-        </Header.Link>
-      </Header.Item>
+        <Link to="/posts/new" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              px: 2,
+              py: 1,
+              borderRadius: 2,
+              fontSize: 1,
+              fontWeight: isCurrent('/posts/new') ? 'bold' : 'normal',
+              color: isCurrent('/posts/new') ? 'fg.default' : 'fg.muted',
+              bg: isCurrent('/posts/new') ? 'canvas.subtle' : 'transparent',
+              '&:hover': {
+                color: 'fg.default',
+                bg: 'canvas.subtle',
+              },
+            }}
+          >
+            <PlusIcon size={16} />
+            <span>New Post</span>
+          </Box>
+        </Link>
 
-      <Header.Item>
-        <Header.Link
-          as={Link}
-          to="/settings"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontWeight: isCurrent('/settings') ? 'bold' : 'normal',
-            color: isCurrent('/settings')
-              ? 'var(--fgColor-default, #1f2328)'
-              : 'var(--fgColor-muted, #656d76)',
-            textDecoration: 'none',
-          }}
-        >
-          <GearIcon size={16} />
-          <span>Settings</span>
-        </Header.Link>
-      </Header.Item>
+        <Link to="/settings" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              px: 2,
+              py: 1,
+              borderRadius: 2,
+              fontSize: 1,
+              fontWeight: isCurrent('/settings') ? 'bold' : 'normal',
+              color: isCurrent('/settings') ? 'fg.default' : 'fg.muted',
+              bg: isCurrent('/settings') ? 'canvas.subtle' : 'transparent',
+              '&:hover': {
+                color: 'fg.default',
+                bg: 'canvas.subtle',
+              },
+            }}
+          >
+            <GearIcon size={16} />
+            <span>Settings</span>
+          </Box>
+        </Link>
+      </Box>
 
       {/* Right controls */}
-      <Header.Item
-        style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}
+      <Box
+        sx={{
+          marginLeft: 'auto',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+        }}
       >
         {isLinkedInConnected ? (
           <Link to="/settings?tab=linkedin" style={{ textDecoration: 'none' }}>
@@ -178,7 +227,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           variant="invisible"
           onClick={onToggleTheme}
         />
-      </Header.Item>
-    </Header>
+      </Box>
+    </Box>
   );
 };

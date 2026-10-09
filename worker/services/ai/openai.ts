@@ -165,14 +165,24 @@ export class OpenAICompatibleProvider implements AIProvider {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 45000);
 
+    const lastUserMsg =
+      [...options.messages].reverse().find((m) => m.role === 'user')?.content || '';
+    const isGreetingOrSmallTalk =
+      /^(hey|hi|hello|yo|howdy|sup|greetings|thanks|thank you|who are you|what can you do)[\s!.?]*$/i.test(
+        lastUserMsg.trim()
+      );
+
     const hasSearchIntent = [...options.messages].some(
       (m) =>
         m.role === 'user' &&
-        /\b(search (the web|online|internet|google|bing)|look up on the web|latest news|current news|breaking news)\b/i.test(
+        /\b(search (the web|online|internet|google|bing)|look up on the web|latest news|current news|breaking news|github\.com|https?:\/\/)\b/i.test(
           m.content
         )
     );
-    const shouldSearch = options.enableSearch ?? (this.enableSearch || hasSearchIntent);
+
+    // Only attach tools if not a pure greeting and search is requested or needed
+    const shouldSearch =
+      !isGreetingOrSmallTalk && (options.enableSearch ?? (this.enableSearch || hasSearchIntent));
 
     const requestPayload: Record<string, unknown> = {
       model: this.model,
@@ -270,7 +280,35 @@ export class OpenAICompatibleProvider implements AIProvider {
       }
 
       const data = (await response.json()) as Record<string, unknown>;
-      const { content, finishReason } = extractResponseContent(data);
+      let { content, finishReason } = extractResponseContent(data);
+
+      // If content came back empty and search tools were included, retry without tools
+      // This rescues cases where the model returns an unfulfilled tool_calls or blank message
+      if (!content && shouldSearch) {
+        try {
+          const plainPayload: Record<string, unknown> = {
+            model: this.model,
+            messages: options.messages,
+            temperature: options.temperature ?? this.defaultTemperature,
+            max_tokens: options.maxTokens ?? 2048,
+          };
+          const fallbackResp = await fetch(this.getChatCompletionsUrl(), {
+            method: 'POST',
+            headers: this.buildHeaders(),
+            body: JSON.stringify(plainPayload),
+          });
+          if (fallbackResp.ok) {
+            const fallbackData = (await fallbackResp.json()) as Record<string, unknown>;
+            const extracted = extractResponseContent(fallbackData);
+            if (extracted.content) {
+              content = extracted.content;
+              finishReason = extracted.finishReason;
+            }
+          }
+        } catch {
+          // ignore fallback error and keep original result
+        }
+      }
 
       const usage = data.usage as
         | { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
@@ -485,11 +523,32 @@ interface ExtractedContent {
 function extractResponseContent(data: Record<string, unknown>): ExtractedContent {
   let text = '';
   let finishReason: string | undefined;
+  let reasoning = '';
   const citations: Array<{ url: string; title?: string }> = [];
 
   // 1. Check top-level output_text (used by Responses API & compatible search endpoints)
   if (typeof data.output_text === 'string' && data.output_text.trim()) {
     text = data.output_text.trim();
+  }
+
+  // 2. Check top-level text, response, or result
+  if (!text && typeof data.text === 'string' && data.text.trim()) {
+    text = data.text.trim();
+  }
+  if (!text && typeof data.response === 'string' && data.response.trim()) {
+    text = data.response.trim();
+  }
+  if (!text && typeof data.result === 'string' && data.result.trim()) {
+    text = data.result.trim();
+  }
+
+  // 3. Check Responses API output array
+  if (!text && Array.isArray(data.output)) {
+    for (const item of data.output as Array<Record<string, unknown>>) {
+      if (item.type === 'message' && typeof item.content === 'string') {
+        text += (text ? '\n' : '') + item.content;
+      }
+    }
   }
 
   const choices = Array.isArray(data.choices) ? (data.choices as Array<Record<string, unknown>>) : [];
@@ -500,37 +559,62 @@ function extractResponseContent(data: Record<string, unknown>): ExtractedContent
       finishReason = firstChoice.finish_reason;
     }
 
+    // Direct completions text (e.g. legacy/proxy completions format)
+    if (!text && typeof firstChoice.text === 'string' && firstChoice.text.trim()) {
+      text = firstChoice.text.trim();
+    }
+
     const message = firstChoice.message as Record<string, unknown> | undefined;
-    if (!text && message) {
-      if (typeof message.content === 'string') {
-        text = message.content;
-      } else if (Array.isArray(message.content)) {
-        // Handle array of content parts
-        for (const part of message.content) {
-          if (typeof part === 'string') {
-            text += (text ? '\n' : '') + part;
-          } else if (part && typeof part === 'object') {
-            const partObj = part as Record<string, unknown>;
-            if (typeof partObj.text === 'string') {
-              text += (text ? '\n' : '') + partObj.text;
-            }
-            if (Array.isArray(partObj.annotations)) {
-              for (const ann of partObj.annotations as Array<Record<string, unknown>>) {
-                if (typeof ann?.url === 'string') {
-                  citations.push({
-                    url: ann.url,
-                    title: typeof ann.title === 'string' ? ann.title : undefined,
-                  });
+    if (message) {
+      // Check reasoning/thought tokens (DeepSeek-R1, Qwen-2.5-Coder, AvalAI luna/reasoning models)
+      const rawReasoning =
+        typeof message.reasoning_content === 'string'
+          ? message.reasoning_content
+          : typeof message.reasoning === 'string'
+            ? message.reasoning
+            : typeof message.thought === 'string'
+              ? message.thought
+              : typeof firstChoice.reasoning_content === 'string'
+                ? firstChoice.reasoning_content
+                : '';
+
+      if (rawReasoning && rawReasoning.trim()) {
+        reasoning = rawReasoning.trim();
+      }
+
+      if (!text) {
+        if (typeof message.content === 'string') {
+          text = message.content;
+        } else if (Array.isArray(message.content)) {
+          // Handle array of content parts
+          for (const part of message.content) {
+            if (typeof part === 'string') {
+              text += (text ? '\n' : '') + part;
+            } else if (part && typeof part === 'object') {
+              const partObj = part as Record<string, unknown>;
+              if (typeof partObj.text === 'string') {
+                text += (text ? '\n' : '') + partObj.text;
+              }
+              if (Array.isArray(partObj.annotations)) {
+                for (const ann of partObj.annotations as Array<Record<string, unknown>>) {
+                  if (typeof ann?.url === 'string') {
+                    citations.push({
+                      url: ann.url,
+                      title: typeof ann.title === 'string' ? ann.title : undefined,
+                    });
+                  }
                 }
               }
             }
           }
+        } else if (typeof message.refusal === 'string' && message.refusal.trim()) {
+          text = message.refusal.trim();
         }
       }
     }
   }
 
-  // 2. Check top-level or choice annotations (Perplexity, citation tool outputs, etc.)
+  // 4. Check top-level or choice annotations (Perplexity, citation tool outputs, etc.)
   const rawAnnotations =
     (data.annotations as unknown[]) ||
     (firstChoice?.annotations as unknown[]) ||
@@ -547,7 +631,7 @@ function extractResponseContent(data: Record<string, unknown>): ExtractedContent
     }
   }
 
-  // 3. Fallback for tool_calls if content was empty
+  // 5. Fallback for tool_calls if content was empty
   if (!text) {
     const message = firstChoice?.message as Record<string, unknown> | undefined;
     if (Array.isArray(message?.tool_calls) && message.tool_calls.length > 0) {
@@ -567,7 +651,16 @@ function extractResponseContent(data: Record<string, unknown>): ExtractedContent
     }
   }
 
-  // 4. Append formatted source citations if present and not already embedded
+  // 6. Integrate reasoning into text if present
+  if (reasoning) {
+    if (text) {
+      text = `<thinking>\n${reasoning}\n</thinking>\n\n${text}`;
+    } else {
+      text = reasoning;
+    }
+  }
+
+  // 7. Append formatted source citations if present and not already embedded
   if (citations.length > 0) {
     const unreferenced = citations.filter((c) => !text.includes(c.url));
     if (unreferenced.length > 0) {
