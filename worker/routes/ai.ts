@@ -1,7 +1,7 @@
 import { RequestContext } from '../types';
 import { jsonResponse, errorResponse } from '../middleware/error';
 import { AIConfigRow } from '../db/schema';
-import { AIConfig, SaveAIConfigInput, AIImproveRequest } from '@/types';
+import { AIConfig, SaveAIConfigInput, AIImproveRequest, AISearchProtocol } from '@/types';
 import { encryptSecret, decryptSecret, maskSecret } from '../services/crypto';
 import { createAIProvider } from '../services/ai/factory';
 import { improveContent } from '../services/ai/service';
@@ -37,13 +37,18 @@ export async function handleAIRoutes(
 
     let customHeaders: Record<string, string> = {};
     let enableSearch = false;
+    let searchProtocol: AISearchProtocol = 'auto';
     if (row.custom_headers) {
       try {
         const parsed = JSON.parse(row.custom_headers);
         if (parsed._enable_search === 'true' || parsed._enable_search === true) {
           enableSearch = true;
         }
+        if (parsed._search_protocol) {
+          searchProtocol = parsed._search_protocol;
+        }
         delete parsed._enable_search;
+        delete parsed._search_protocol;
         customHeaders = parsed;
       } catch {
         // ignore
@@ -67,6 +72,7 @@ export async function handleAIRoutes(
       hasApiKey: Boolean(row.api_key),
       maskedApiKey: maskSecret(rawKey),
       enableSearch,
+      searchProtocol,
     };
 
     return jsonResponse(payload);
@@ -101,26 +107,19 @@ export async function handleAIRoutes(
     if (normalizedBaseUrl.endsWith('/')) {
       normalizedBaseUrl = normalizedBaseUrl.slice(0, -1);
     }
-    if (normalizedBaseUrl.includes('chat.avalai.ir')) {
-      normalizedBaseUrl = normalizedBaseUrl.replace('chat.avalai.ir', 'api.avalai.ir');
-    }
-    if (normalizedBaseUrl.includes('api.avalai.ir') && !normalizedBaseUrl.includes('/v1')) {
-      normalizedBaseUrl = `${normalizedBaseUrl}/v1`;
-    }
 
     let normalizedModel = body.model.trim();
-    if (normalizedBaseUrl.includes('avalai.ir')) {
-      if (normalizedModel === 'gpt-luna-6') normalizedModel = 'gpt-6-luna';
-      else if (normalizedModel === 'gpt-luna-5.6') normalizedModel = 'gpt-5.6-luna';
-      else if (normalizedModel === 'gpt-sol-6') normalizedModel = 'gpt-6-sol';
-      else if (normalizedModel === 'gpt-sol-6.1') normalizedModel = 'gpt-6.1-sol';
-      else if (normalizedModel === 'gpt-astra-6') normalizedModel = 'gpt-6-astra';
-      else if (normalizedModel === 'gpt-terra-5.6') normalizedModel = 'gpt-5.6-terra';
-    }
+    if (normalizedModel === 'gpt-luna-6') normalizedModel = 'gpt-6-luna';
+    else if (normalizedModel === 'gpt-luna-5.6') normalizedModel = 'gpt-5.6-luna';
+    else if (normalizedModel === 'gpt-sol-6') normalizedModel = 'gpt-6-sol';
+    else if (normalizedModel === 'gpt-sol-6.1') normalizedModel = 'gpt-6.1-sol';
+    else if (normalizedModel === 'gpt-astra-6') normalizedModel = 'gpt-6-astra';
+    else if (normalizedModel === 'gpt-terra-5.6') normalizedModel = 'gpt-5.6-terra';
 
     const mergedHeaders = {
       ...(body.customHeaders || {}),
       ...(body.enableSearch !== undefined ? { _enable_search: body.enableSearch ? 'true' : 'false' } : {}),
+      ...(body.searchProtocol ? { _search_protocol: body.searchProtocol } : {}),
     };
     const headersJson = JSON.stringify(mergedHeaders);
     const temp = body.temperature ?? 0.7;
@@ -223,6 +222,7 @@ export async function handleAIRoutes(
       apiKey,
       model: model || 'gpt-4o',
       customHeaders,
+      searchProtocol: body.searchProtocol,
     });
 
     const result = await provider.testConnection();
@@ -252,9 +252,16 @@ export async function handleAIRoutes(
 
     const apiKey = await decryptSecret(configRow.api_key, env.ENCRYPTION_KEY);
     let customHeaders: Record<string, string> = {};
+    let searchProtocol: AISearchProtocol = 'auto';
     if (configRow.custom_headers) {
       try {
-        customHeaders = JSON.parse(configRow.custom_headers);
+        const parsed = JSON.parse(configRow.custom_headers);
+        if (parsed._search_protocol) {
+          searchProtocol = parsed._search_protocol;
+        }
+        delete parsed._enable_search;
+        delete parsed._search_protocol;
+        customHeaders = parsed;
       } catch {
         // ignore
       }
@@ -267,6 +274,7 @@ export async function handleAIRoutes(
       model: configRow.model,
       customHeaders,
       temperature: configRow.temperature,
+      searchProtocol,
     });
 
     try {

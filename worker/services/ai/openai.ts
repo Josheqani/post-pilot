@@ -5,6 +5,7 @@ import {
   AIGenerateOptions,
   AIResponse,
   AITestResult,
+  AISearchProtocol,
 } from './types';
 
 export class OpenAICompatibleProvider implements AIProvider {
@@ -15,6 +16,7 @@ export class OpenAICompatibleProvider implements AIProvider {
   private customHeaders: Record<string, string>;
   private defaultTemperature: number;
   private enableSearch: boolean;
+  private searchProtocol: AISearchProtocol;
 
   constructor(config: AIProviderConfig) {
     // Normalize base URL: remove trailing slash and ensure protocol
@@ -22,32 +24,23 @@ export class OpenAICompatibleProvider implements AIProvider {
     if (url.endsWith('/')) {
       url = url.slice(0, -1);
     }
-    // If user provided AvalAI web UI host (chat.avalai.ir), automatically route to the API host
-    if (url.includes('chat.avalai.ir')) {
-      url = url.replace('chat.avalai.ir', 'api.avalai.ir');
-    }
-    // AvalAI endpoints require /v1 prefix; if omitted (e.g. https://api.avalai.ir), append /v1
-    if (url.includes('api.avalai.ir') && !url.includes('/v1')) {
-      url = `${url}/v1`;
-    }
     this.baseUrl = url;
     this.apiKey = config.apiKey.trim();
 
-    // Normalize model name (e.g. user enters gpt-luna-6 instead of gpt-6-luna)
+    // Model name alias normalization
     let modelName = config.model.trim() || 'gpt-4o';
-    const isAvalai = this.baseUrl.includes('avalai.ir');
-    if (isAvalai) {
-      if (modelName === 'gpt-luna-6') modelName = 'gpt-6-luna';
-      else if (modelName === 'gpt-luna-5.6') modelName = 'gpt-5.6-luna';
-      else if (modelName === 'gpt-sol-6') modelName = 'gpt-6-sol';
-      else if (modelName === 'gpt-sol-6.1') modelName = 'gpt-6.1-sol';
-      else if (modelName === 'gpt-astra-6') modelName = 'gpt-6-astra';
-      else if (modelName === 'gpt-terra-5.6') modelName = 'gpt-5.6-terra';
-    }
+    if (modelName === 'gpt-luna-6') modelName = 'gpt-6-luna';
+    else if (modelName === 'gpt-luna-5.6') modelName = 'gpt-5.6-luna';
+    else if (modelName === 'gpt-sol-6') modelName = 'gpt-6-sol';
+    else if (modelName === 'gpt-sol-6.1') modelName = 'gpt-6.1-sol';
+    else if (modelName === 'gpt-astra-6') modelName = 'gpt-6-astra';
+    else if (modelName === 'gpt-terra-5.6') modelName = 'gpt-5.6-terra';
+
     this.model = modelName;
     this.customHeaders = config.customHeaders || {};
     this.defaultTemperature = config.temperature ?? 0.7;
     this.enableSearch = Boolean(config.enableSearch);
+    this.searchProtocol = config.searchProtocol || 'auto';
   }
 
   private getChatCompletionsUrl(): string {
@@ -189,33 +182,31 @@ export class OpenAICompatibleProvider implements AIProvider {
     };
 
     if (shouldSearch) {
-      const isAvalai = this.baseUrl.includes('avalai.ir');
-      const isOpenRouter =
-        this.baseUrl.includes('openrouter.ai') ||
-        Boolean(this.customHeaders['HTTP-Referer']) ||
-        Boolean(this.customHeaders['X-Title']);
-      const isPerplexity = this.baseUrl.includes('perplexity.ai');
+      let protocol = this.searchProtocol;
 
-      if (isOpenRouter) {
-        // OpenRouter web search plugin: activates live internet browsing for any model
-        requestPayload.plugins = [{ id: 'web' }];
-      }
+      // Auto-detect protocol if configured to 'auto'
+      if (protocol === 'auto') {
+        const isOpenRouter =
+          this.baseUrl.includes('openrouter.ai') ||
+          Boolean(this.customHeaders['HTTP-Referer']) ||
+          Boolean(this.customHeaders['X-Title']);
+        const isPerplexity = this.baseUrl.includes('perplexity.ai');
+        const isGemini = this.model.toLowerCase().startsWith('gemini');
 
-      if (isPerplexity) {
-        requestPayload.return_citations = true;
-      }
-
-      if (isAvalai) {
-        // AvalAI Tool Search specification
-        if (this.model.toLowerCase().startsWith('gemini')) {
-          requestPayload.tools = [
-            {
-              googleSearch: {
-                detail_level: 'high',
-              },
-            },
-          ];
+        if (isOpenRouter) {
+          protocol = 'openrouter';
+        } else if (isPerplexity) {
+          protocol = 'perplexity';
+        } else if (isGemini) {
+          protocol = 'google_search';
         } else {
+          protocol = 'openai_tool';
+        }
+      }
+
+      switch (protocol) {
+        case 'openai_tool':
+          // Standard OpenAI-compatible web search tool
           requestPayload.tools = [
             {
               type: 'web_search',
@@ -223,11 +214,34 @@ export class OpenAICompatibleProvider implements AIProvider {
             },
           ];
           requestPayload.tool_choice = 'auto';
-        }
-      } else {
-        // Standard OpenAI-compatible gateways tool-based web search
-        requestPayload.tools = [{ type: 'web_search' }];
-        requestPayload.web_search = true;
+          requestPayload.web_search = true;
+          break;
+
+        case 'google_search':
+          // Google search grounding tool (Gemini models and Google-compatible gateways)
+          requestPayload.tools = [
+            {
+              googleSearch: {
+                detail_level: 'high',
+              },
+            },
+          ];
+          break;
+
+        case 'openrouter':
+          // OpenRouter web browsing plugin
+          requestPayload.plugins = [{ id: 'web' }];
+          break;
+
+        case 'perplexity':
+          // Perplexity API search grounding and citations
+          requestPayload.return_citations = true;
+          break;
+
+        default:
+          requestPayload.tools = [{ type: 'web_search' }];
+          requestPayload.web_search = true;
+          break;
       }
     }
 
@@ -465,7 +479,7 @@ interface ExtractedContent {
 }
 
 /**
- * Robust content and citation extractor supporting OpenAI, AvalAI, and compatible gateways.
+ * Robust content and citation extractor supporting OpenAI, Responses API, and compatible gateways.
  * Handles string content, arrays of content/output parts, top-level output_text, and URL citations.
  */
 function extractResponseContent(data: Record<string, unknown>): ExtractedContent {
@@ -473,7 +487,7 @@ function extractResponseContent(data: Record<string, unknown>): ExtractedContent
   let finishReason: string | undefined;
   const citations: Array<{ url: string; title?: string }> = [];
 
-  // 1. Check top-level output_text (used by AvalAI Responses API & some endpoints)
+  // 1. Check top-level output_text (used by Responses API & compatible search endpoints)
   if (typeof data.output_text === 'string' && data.output_text.trim()) {
     text = data.output_text.trim();
   }
@@ -516,7 +530,7 @@ function extractResponseContent(data: Record<string, unknown>): ExtractedContent
     }
   }
 
-  // 2. Check top-level or choice annotations (AvalAI, Perplexity, etc.)
+  // 2. Check top-level or choice annotations (Perplexity, citation tool outputs, etc.)
   const rawAnnotations =
     (data.annotations as unknown[]) ||
     (firstChoice?.annotations as unknown[]) ||

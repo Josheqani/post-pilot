@@ -28,6 +28,13 @@ export interface AIGenerateOptions {
   enableSearch?: boolean;
 }
 
+export type AISearchProtocol =
+  | 'auto'
+  | 'openai_tool'
+  | 'google_search'
+  | 'openrouter'
+  | 'perplexity';
+
 export interface AIProviderConfig {
   providerType?: string;
   baseUrl: string;
@@ -36,6 +43,7 @@ export interface AIProviderConfig {
   customHeaders?: Record<string, string>;
   temperature?: number;
   enableSearch?: boolean;
+  searchProtocol?: AISearchProtocol;
 }
 
 export interface AITestResult {

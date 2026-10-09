@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Button, FormControl, TextInput, Spinner, Label } from '@primer/react';
+import { Button, FormControl, TextInput, Spinner, Label, Select } from '@primer/react';
 import { Box, Heading, Text, Flash } from '@/components/PrimerCompat';
 import { CheckIcon, AlertIcon, ZapIcon, GlobeIcon } from '@primer/octicons-react';
 import { useAIConfig } from '@/hooks/useAIConfig';
+import { AISearchProtocol } from '@/types';
 
 export const AIProviderSettings: React.FC = () => {
   const { config, isLoading, isSaving, isTesting, testResult, error, saveConfig, testConnection } =
@@ -14,6 +15,7 @@ export const AIProviderSettings: React.FC = () => {
   const [temperature, setTemperature] = useState('0.7');
   const [headersJson, setHeadersJson] = useState('{}');
   const [enableSearch, setEnableSearch] = useState(false);
+  const [searchProtocol, setSearchProtocol] = useState<AISearchProtocol>('auto');
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
 
   useEffect(() => {
@@ -22,6 +24,7 @@ export const AIProviderSettings: React.FC = () => {
       setModel(config.model || 'gpt-4o');
       setTemperature(String(config.temperature ?? 0.7));
       setEnableSearch(Boolean(config.enableSearch));
+      setSearchProtocol(config.searchProtocol || 'auto');
       if (config.customHeaders) {
         setHeadersJson(JSON.stringify(config.customHeaders, null, 2));
       }
@@ -30,28 +33,32 @@ export const AIProviderSettings: React.FC = () => {
 
   const PRESETS = [
     {
-      name: 'AvalAI (Live Search)',
-      baseUrl: 'https://api.avalai.ir/v1',
-      model: 'gpt-6-luna',
-      enableSearch: true,
-    },
-    {
       name: 'OpenAI',
       baseUrl: 'https://api.openai.com/v1',
       model: 'gpt-4o',
       enableSearch: false,
+      searchProtocol: 'auto' as AISearchProtocol,
     },
     {
       name: 'OpenRouter',
       baseUrl: 'https://openrouter.ai/api/v1',
       model: 'anthropic/claude-3.5-sonnet',
       enableSearch: true,
+      searchProtocol: 'openrouter' as AISearchProtocol,
+    },
+    {
+      name: 'Perplexity',
+      baseUrl: 'https://api.perplexity.ai',
+      model: 'sonar',
+      enableSearch: true,
+      searchProtocol: 'perplexity' as AISearchProtocol,
     },
     {
       name: 'Groq',
       baseUrl: 'https://api.groq.com/openai/v1',
       model: 'llama-3.3-70b-versatile',
       enableSearch: false,
+      searchProtocol: 'auto' as AISearchProtocol,
     },
   ];
 
@@ -60,22 +67,14 @@ export const AIProviderSettings: React.FC = () => {
     if (cleanUrl.endsWith('/')) {
       cleanUrl = cleanUrl.slice(0, -1);
     }
-    if (cleanUrl.includes('chat.avalai.ir')) {
-      cleanUrl = cleanUrl.replace('chat.avalai.ir', 'api.avalai.ir');
-    }
-    if (cleanUrl.includes('api.avalai.ir') && !cleanUrl.includes('/v1')) {
-      cleanUrl = `${cleanUrl}/v1`;
-    }
 
     let cleanModel = mdl.trim();
-    if (cleanUrl.includes('avalai.ir')) {
-      if (cleanModel === 'gpt-luna-6') cleanModel = 'gpt-6-luna';
-      else if (cleanModel === 'gpt-luna-5.6') cleanModel = 'gpt-5.6-luna';
-      else if (cleanModel === 'gpt-sol-6') cleanModel = 'gpt-6-sol';
-      else if (cleanModel === 'gpt-sol-6.1') cleanModel = 'gpt-6.1-sol';
-      else if (cleanModel === 'gpt-astra-6') cleanModel = 'gpt-6-astra';
-      else if (cleanModel === 'gpt-terra-5.6') cleanModel = 'gpt-5.6-terra';
-    }
+    if (cleanModel === 'gpt-luna-6') cleanModel = 'gpt-6-luna';
+    else if (cleanModel === 'gpt-luna-5.6') cleanModel = 'gpt-5.6-luna';
+    else if (cleanModel === 'gpt-sol-6') cleanModel = 'gpt-6-sol';
+    else if (cleanModel === 'gpt-sol-6.1') cleanModel = 'gpt-6.1-sol';
+    else if (cleanModel === 'gpt-astra-6') cleanModel = 'gpt-6-astra';
+    else if (cleanModel === 'gpt-terra-5.6') cleanModel = 'gpt-5.6-terra';
 
     return { cleanUrl, cleanModel };
   };
@@ -84,6 +83,7 @@ export const AIProviderSettings: React.FC = () => {
     setBaseUrl(preset.baseUrl);
     setModel(preset.model);
     setEnableSearch(preset.enableSearch);
+    setSearchProtocol(preset.searchProtocol);
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -112,6 +112,7 @@ export const AIProviderSettings: React.FC = () => {
         temperature: parseFloat(temperature) || 0.7,
         customHeaders: parsedHeaders,
         enableSearch,
+        searchProtocol,
       });
       setSuccessNotice('AI configuration updated and encrypted securely.');
       setApiKey(''); // Clear client field after successful save
@@ -140,6 +141,7 @@ export const AIProviderSettings: React.FC = () => {
       apiKey: apiKey.trim() || undefined,
       model: cleanModel,
       customHeaders: parsedHeaders,
+      searchProtocol,
     });
   };
 
@@ -222,7 +224,7 @@ export const AIProviderSettings: React.FC = () => {
               block
             />
             <FormControl.Caption>
-              Must point to an OpenAI-compatible /v1 endpoint (e.g. <code>https://api.avalai.ir/v1</code>, <code>https://api.openai.com/v1</code>, or <code>https://api.groq.com/openai/v1</code>).
+              Must point to an OpenAI-compatible /v1 endpoint (e.g. <code>https://api.openai.com/v1</code>, <code>https://openrouter.ai/api/v1</code>, or <code>https://api.groq.com/openai/v1</code>).
             </FormControl.Caption>
           </FormControl>
 
@@ -251,7 +253,7 @@ export const AIProviderSettings: React.FC = () => {
               block
             />
             <FormControl.Caption>
-              Any model supported by your endpoint (e.g. <code>gpt-6-luna</code> for AvalAI web search, <code>gpt-4o</code>, <code>claude-3-5-sonnet</code>).
+              Any model supported by your endpoint (e.g. <code>gpt-4o</code>, <code>gpt-6-luna</code>, <code>claude-3-5-sonnet</code>, <code>llama-3.3-70b-versatile</code>).
             </FormControl.Caption>
           </FormControl>
 
@@ -281,7 +283,7 @@ export const AIProviderSettings: React.FC = () => {
             </FormControl.Caption>
           </FormControl>
 
-          {/* Web Search Grounding Toggle */}
+          {/* Web Search Grounding Box */}
           <Box
             sx={{
               p: 3,
@@ -289,31 +291,64 @@ export const AIProviderSettings: React.FC = () => {
               border: '1px solid',
               borderColor: enableSearch ? 'accent.muted' : 'border.default',
               bg: enableSearch ? 'canvas.subtle' : 'canvas.default',
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: 3,
               transition: 'all 0.15s ease',
             }}
           >
-            <input
-              type="checkbox"
-              id="enable-search-toggle"
-              checked={enableSearch}
-              onChange={(e) => setEnableSearch(e.target.checked)}
-              style={{ marginTop: 3, cursor: 'pointer', width: 16, height: 16 }}
-            />
-            <label htmlFor="enable-search-toggle" style={{ cursor: 'pointer', flex: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <GlobeIcon size={16} />
-                <Text sx={{ fontWeight: 600, fontSize: 1 }}>
-                  Enable Live Web Search & Grounding
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 3 }}>
+              <input
+                type="checkbox"
+                id="enable-search-toggle"
+                checked={enableSearch}
+                onChange={(e) => setEnableSearch(e.target.checked)}
+                style={{ marginTop: 3, cursor: 'pointer', width: 16, height: 16 }}
+              />
+              <label htmlFor="enable-search-toggle" style={{ cursor: 'pointer', flex: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <GlobeIcon size={16} />
+                  <Text sx={{ fontWeight: 600, fontSize: 1 }}>
+                    Enable Live Web Search & Grounding
+                  </Text>
+                  <Label variant="accent">Search</Label>
+                </Box>
+                <Text sx={{ fontSize: 0, color: 'fg.muted', display: 'block', mt: 1, lineHeight: 1.5 }}>
+                  Enables real-time internet search for your AI model. When enabled, PostPilot instructs the model to browse and cite up-to-date facts using your selected search format.
                 </Text>
-                <Label variant="accent">Search</Label>
+              </label>
+            </Box>
+
+            {enableSearch && (
+              <Box sx={{ mt: 3, pt: 3, borderTop: '1px solid', borderColor: 'border.muted' }}>
+                <FormControl>
+                  <FormControl.Label>
+                    Search Protocol / Format
+                  </FormControl.Label>
+                  <Select
+                    value={searchProtocol}
+                    onChange={(e) => setSearchProtocol(e.target.value as AISearchProtocol)}
+                    block
+                  >
+                    <Select.Option value="auto">
+                      Auto-detect (Recommended)
+                    </Select.Option>
+                    <Select.Option value="openai_tool">
+                      OpenAI Tool Search (web_search tool parameter)
+                    </Select.Option>
+                    <Select.Option value="google_search">
+                      Google Search Grounding (googleSearch tool)
+                    </Select.Option>
+                    <Select.Option value="openrouter">
+                      OpenRouter Plugin (web search plugin)
+                    </Select.Option>
+                    <Select.Option value="perplexity">
+                      Perplexity Citations (return_citations: true)
+                    </Select.Option>
+                  </Select>
+                  <FormControl.Caption>
+                    Choose the tool or plugin format supported by your endpoint or proxy gateway.
+                  </FormControl.Caption>
+                </FormControl>
               </Box>
-              <Text sx={{ fontSize: 0, color: 'fg.muted', display: 'block', mt: 1, lineHeight: 1.5 }}>
-                Enables real-time internet search for your AI model. Automatically configured for <strong>AvalAI</strong> (e.g. <code>gpt-6-luna</code>, <code>gpt-5.6-luna</code> using built-in web search tools), <strong>OpenRouter</strong> (<code>plugins: [&#123; id: 'web' &#125;]</code>), and <strong>Perplexity</strong> (search grounding & citations).
-              </Text>
-            </label>
+            )}
           </Box>
 
           <Box sx={{ display: 'flex', gap: 2, pt: 2 }}>

@@ -43,6 +43,13 @@ export interface LinkedInAccount {
   connectedAt: string;
 }
 
+export type AISearchProtocol =
+  | 'auto'
+  | 'openai_tool'
+  | 'google_search'
+  | 'openrouter'
+  | 'perplexity';
+
 export interface AIConfig {
   id?: string;
   providerType: string;
@@ -53,6 +60,7 @@ export interface AIConfig {
   hasApiKey: boolean;
   maskedApiKey: string;
   enableSearch?: boolean;
+  searchProtocol?: AISearchProtocol;
 }
 
 export interface SaveAIConfigInput {
@@ -62,6 +70,7 @@ export interface SaveAIConfigInput {
   customHeaders?: Record<string, string>;
   temperature?: number;
   enableSearch?: boolean;
+  searchProtocol?: AISearchProtocol;
 }
 
 export interface AITestResult {

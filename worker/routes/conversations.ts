@@ -246,13 +246,18 @@ export async function handleConversationRoutes(
       const apiKey = await decryptSecret(configRow.api_key, env.ENCRYPTION_KEY);
       let customHeaders: Record<string, string> = {};
       let enableSearch = false;
+      let searchProtocol: 'auto' | 'openai_tool' | 'google_search' | 'openrouter' | 'perplexity' = 'auto';
       if (configRow.custom_headers) {
         try {
           const parsed = JSON.parse(configRow.custom_headers);
           if (parsed._enable_search === 'true' || parsed._enable_search === true) {
             enableSearch = true;
           }
+          if (parsed._search_protocol) {
+            searchProtocol = parsed._search_protocol;
+          }
           delete parsed._enable_search;
+          delete parsed._search_protocol;
           customHeaders = parsed;
         } catch {
           // ignore
@@ -267,6 +272,7 @@ export async function handleConversationRoutes(
         customHeaders,
         temperature: configRow.temperature,
         enableSearch,
+        searchProtocol,
       });
 
       // Load previous messages for conversational history
