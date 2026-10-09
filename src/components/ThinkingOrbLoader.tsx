@@ -58,6 +58,15 @@ function determineSteps(prompt?: string): Step[] {
     ];
   }
 
+  const hasMemory = /\b(remember|memory|recall|preferences|who am i|my bio|my style)\b/i.test(p);
+  if (hasMemory) {
+    return [
+      { label: 'Recalling creator memory & profile', state: 'working', icon: 'analyze' },
+      { label: 'Synthesizing voice, tone & topics', state: 'weaving', icon: 'plan' },
+      { label: 'Drafting personalized LinkedIn content', state: 'composing', icon: 'compose' },
+    ];
+  }
+
   return [
     { label: 'Thinking & analyzing context', state: 'working', icon: 'analyze' },
     { label: 'Planning hook, structure & takeaways', state: 'solving', icon: 'plan' },

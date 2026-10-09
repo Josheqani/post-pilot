@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Button, FormControl, TextInput, Spinner, Label, Select } from '@primer/react';
+import { Button, FormControl, TextInput, Textarea, Spinner, Label, Select } from '@primer/react';
 import { Box, Heading, Text, Flash } from '@/components/PrimerCompat';
-import { CheckIcon, AlertIcon, ZapIcon, GlobeIcon } from '@primer/octicons-react';
+import { CheckIcon, AlertIcon, ZapIcon, GlobeIcon, TrashIcon } from '@primer/octicons-react';
 import { useAIConfig } from '@/hooks/useAIConfig';
 import { AISearchProtocol } from '@/types';
+import { BrainIcon } from '@/components/icons/BrainIcon';
+import { api } from '@/services/api';
 
 export const AIProviderSettings: React.FC = () => {
   const { config, isLoading, isSaving, isTesting, testResult, error, saveConfig, testConnection } =
@@ -18,6 +20,14 @@ export const AIProviderSettings: React.FC = () => {
   const [searchProtocol, setSearchProtocol] = useState<AISearchProtocol>('auto');
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
 
+  // Memory states
+  const [enableMemory, setEnableMemory] = useState(false);
+  const [memoryLimit, setMemoryLimit] = useState(2000);
+  const [memoryContent, setMemoryContent] = useState('');
+  const [isCompacting, setIsCompacting] = useState(false);
+  const [compactNotice, setCompactNotice] = useState<string | null>(null);
+  const [isClearing, setIsClearing] = useState(false);
+
   useEffect(() => {
     if (config) {
       setBaseUrl(config.baseUrl || 'https://api.openai.com/v1');
@@ -25,6 +35,9 @@ export const AIProviderSettings: React.FC = () => {
       setTemperature(String(config.temperature ?? 0.7));
       setEnableSearch(Boolean(config.enableSearch));
       setSearchProtocol(config.searchProtocol || 'auto');
+      setEnableMemory(Boolean(config.enableMemory));
+      setMemoryLimit(config.memoryLimit ?? 2000);
+      setMemoryContent(config.memoryContent || '');
       if (config.customHeaders) {
         setHeadersJson(JSON.stringify(config.customHeaders, null, 2));
       }
@@ -113,12 +126,68 @@ export const AIProviderSettings: React.FC = () => {
         customHeaders: parsedHeaders,
         enableSearch,
         searchProtocol,
+        enableMemory,
+        memoryLimit,
+        memoryContent,
       });
       setSuccessNotice('AI configuration updated and encrypted securely.');
       setApiKey(''); // Clear client field after successful save
     } catch {
       // handled by hook error
     }
+  };
+
+  const handleClearMemory = async () => {
+    if (!window.confirm('Are you sure you want to clear all stored long-term memory? This cannot be undone.')) {
+      return;
+    }
+    setIsClearing(true);
+    try {
+      await api.ai.clearMemory();
+      setMemoryContent('');
+      setCompactNotice(null);
+      setSuccessNotice('AI Memory cleared successfully.');
+    } catch (err: unknown) {
+      const e = err as Error;
+      alert(`Failed to clear memory: ${e.message}`);
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
+  const handleCompactMemory = async () => {
+    if (!memoryContent.trim() || isCompacting) return;
+    setIsCompacting(true);
+    setCompactNotice(null);
+    try {
+      const res = await api.ai.compactMemory({
+        content: memoryContent,
+        limit: memoryLimit,
+        model,
+      });
+      setMemoryContent(res.compactedContent);
+      setCompactNotice(
+        res.message ||
+          `Compacted memory from ${res.originalSize} to ${res.compactedSize} chars (saved ${res.savedChars} chars)!`
+      );
+    } catch (err: unknown) {
+      const e = err as Error;
+      alert(`Compacting failed: ${e.message}`);
+    } finally {
+      setIsCompacting(false);
+    }
+  };
+
+  const handleInsertStarterTemplate = () => {
+    const template = `- Creator: Ali Josheqani
+- Role: Software Engineer & Technical Creator
+- Project: PostPilot (Self-hosted LinkedIn content studio)
+- Content Style: Provocative hooks, generous whitespace, 1-2 sentence paragraphs, high engagement questions
+- Core Topics: AI engineering, Cloudflare Workers, React 19, devtools, startup architecture
+- Target Audience: Engineers, founders, technical leaders, builders
+- Tone: Insightful, humble, pragmatic, zero corporate buzzwords`;
+
+    setMemoryContent(template);
   };
 
   const handleTest = async () => {
@@ -341,6 +410,191 @@ export const AIProviderSettings: React.FC = () => {
                     Choose the tool or plugin format supported by your endpoint or proxy gateway.
                   </FormControl.Caption>
                 </FormControl>
+              </Box>
+            )}
+          </Box>
+
+          {/* Long-Term AI Memory Box */}
+          <Box
+            sx={{
+              p: 3,
+              borderRadius: 2,
+              border: '1px solid',
+              borderColor: enableMemory ? 'accent.emphasis' : 'border.default',
+              bg: enableMemory ? 'canvas.subtle' : 'canvas.default',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 3 }}>
+              <input
+                type="checkbox"
+                id="enable-memory-toggle"
+                checked={enableMemory}
+                onChange={(e) => setEnableMemory(e.target.checked)}
+                style={{ marginTop: 3, cursor: 'pointer', width: 16, height: 16 }}
+              />
+              <label htmlFor="enable-memory-toggle" style={{ cursor: 'pointer', flex: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <BrainIcon size={18} />
+                  <Text sx={{ fontWeight: 600, fontSize: 1 }}>
+                    Enable Long-Term AI Memory
+                  </Text>
+                  <Label variant="accent" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <BrainIcon size={12} /> Memory
+                  </Label>
+                </Box>
+                <Text sx={{ fontSize: 0, color: 'fg.muted', display: 'block', mt: 1, lineHeight: 1.5 }}>
+                  PostPilot stores key facts, writing preferences, audience traits, and project context across all discussions.
+                </Text>
+              </label>
+            </Box>
+
+            {enableMemory && (
+              <Box sx={{ mt: 3, pt: 3, borderTop: '1px solid', borderColor: 'border.muted', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {/* Memory Capacity & Meter */}
+                <Box
+                  sx={{
+                    p: 2.5,
+                    bg: 'canvas.default',
+                    border: '1px solid',
+                    borderColor: 'border.default',
+                    borderRadius: 2,
+                  }}
+                >
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <BrainIcon size={14} />
+                      <Text sx={{ fontSize: 0, fontWeight: 600 }}>
+                        Memory Usage: {memoryContent.length.toLocaleString()} / {memoryLimit.toLocaleString()} characters ({Math.min(100, Math.round((memoryContent.length / memoryLimit) * 100))}%)
+                      </Text>
+                    </Box>
+
+                    {memoryContent.length >= memoryLimit ? (
+                      <Label variant="danger">Limit Reached</Label>
+                    ) : memoryContent.length >= memoryLimit * 0.8 ? (
+                      <Label variant="attention">Near Limit</Label>
+                    ) : (
+                      <Label variant="success">Active</Label>
+                    )}
+                  </Box>
+
+                  {/* Progress Bar */}
+                  <Box
+                    sx={{
+                      width: '100%',
+                      height: '8px',
+                      bg: 'border.muted',
+                      borderRadius: '4px',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: `${Math.min(100, Math.round((memoryContent.length / memoryLimit) * 100))}%`,
+                        height: '100%',
+                        bg:
+                          memoryContent.length >= memoryLimit
+                            ? 'danger.emphasis'
+                            : memoryContent.length >= memoryLimit * 0.8
+                              ? 'attention.emphasis'
+                              : 'success.emphasis',
+                        transition: 'width 0.3s ease',
+                      }}
+                    />
+                  </Box>
+
+                  {memoryContent.length >= memoryLimit && (
+                    <Flash variant="warning" sx={{ mt: 2 }}>
+                      <AlertIcon size={14} />
+                      Memory limit reached ({memoryContent.length}/{memoryLimit} characters). Click &ldquo;Compact with Model&rdquo; below to summarize and deduplicate facts, or increase your memory limit.
+                    </Flash>
+                  )}
+                </Box>
+
+                {/* Limit Size Selector */}
+                <FormControl>
+                  <FormControl.Label>Memory Limit Size</FormControl.Label>
+                  <Select
+                    value={String(memoryLimit)}
+                    onChange={(e) => setMemoryLimit(parseInt(e.target.value, 10))}
+                    block
+                  >
+                    <Select.Option value="1000">1,000 characters (Light Context)</Select.Option>
+                    <Select.Option value="2000">2,000 characters (Standard — Recommended)</Select.Option>
+                    <Select.Option value="4000">4,000 characters (Extended Context)</Select.Option>
+                    <Select.Option value="8000">8,000 characters (Deep Persona & Facts)</Select.Option>
+                  </Select>
+                  <FormControl.Caption>
+                    Caps how many characters of persistent creator memory are injected into model discussions.
+                  </FormControl.Caption>
+                </FormControl>
+
+                {/* Memory Content Textarea */}
+                <FormControl>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <FormControl.Label>Stored Creator Memory & Preferences</FormControl.Label>
+                    <Button
+                      size="small"
+                      type="button"
+                      onClick={handleInsertStarterTemplate}
+                    >
+                      Insert Starter Template
+                    </Button>
+                  </Box>
+                  <Textarea
+                    value={memoryContent}
+                    onChange={(e) => setMemoryContent(e.target.value)}
+                    placeholder="- Ali is building PostPilot (self-hosted LinkedIn content workspace)&#10;- Prefers punchy 1-2 line hooks, whitespace line breaks, actionable takeaways&#10;- Topics: Cloudflare Workers, React, AI, Startups&#10;- Tone: Vulnerable, insightful, direct"
+                    rows={6}
+                    block
+                    style={{
+                      fontFamily: 'monospace',
+                      fontSize: '12px',
+                      lineHeight: 1.5,
+                      resize: 'vertical',
+                    }}
+                  />
+                  <FormControl.Caption>
+                    Each bullet point is remembered across all chats and helps PostPilot AI naturally match your voice, bio, and topics.
+                  </FormControl.Caption>
+                </FormControl>
+
+                {/* Compact Notice */}
+                {compactNotice && (
+                  <Flash variant="success">
+                    <CheckIcon size={14} />
+                    {compactNotice}
+                  </Flash>
+                )}
+
+                {/* Action Buttons for Memory */}
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <Button
+                    type="button"
+                    leadingVisual={BrainIcon}
+                    onClick={handleCompactMemory}
+                    disabled={isCompacting || !memoryContent.trim()}
+                  >
+                    {isCompacting ? (
+                      <>
+                        <Spinner size="small" style={{ marginRight: 6 }} />
+                        Compacting with {model}...
+                      </>
+                    ) : (
+                      `Compact with ${model}`
+                    )}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="danger"
+                    leadingVisual={TrashIcon}
+                    onClick={handleClearMemory}
+                    disabled={isClearing || !memoryContent.trim()}
+                  >
+                    {isClearing ? 'Clearing...' : 'Clear Memory'}
+                  </Button>
+                </Box>
               </Box>
             )}
           </Box>

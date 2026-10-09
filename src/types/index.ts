@@ -61,6 +61,9 @@ export interface AIConfig {
   maskedApiKey: string;
   enableSearch?: boolean;
   searchProtocol?: AISearchProtocol;
+  enableMemory?: boolean;
+  memoryLimit?: number;
+  memoryContent?: string;
 }
 
 export interface SaveAIConfigInput {
@@ -71,6 +74,24 @@ export interface SaveAIConfigInput {
   temperature?: number;
   enableSearch?: boolean;
   searchProtocol?: AISearchProtocol;
+  enableMemory?: boolean;
+  memoryLimit?: number;
+  memoryContent?: string;
+}
+
+export interface CompactMemoryRequest {
+  content?: string;
+  limit?: number;
+  model?: string;
+}
+
+export interface CompactMemoryResponse {
+  success: boolean;
+  compactedContent: string;
+  originalSize: number;
+  compactedSize: number;
+  savedChars: number;
+  message?: string;
 }
 
 export interface AITestResult {

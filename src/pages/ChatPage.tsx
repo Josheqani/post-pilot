@@ -82,6 +82,8 @@ export const ChatPage: React.FC = () => {
         onNew={startNewChat}
         onDelete={deleteConversation}
         isLoading={isLoadingList}
+        isResponding={isSending}
+        respondingId={isSending ? activeConversationId : null}
       />
 
       {/* Main Chat Area */}

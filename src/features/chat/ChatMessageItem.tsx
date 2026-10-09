@@ -14,6 +14,7 @@ import {
 } from '@primer/octicons-react';
 import { Message } from '@/types';
 import { MarkdownContent } from '@/components/MarkdownContent';
+import { BrainIcon } from '@/components/icons/BrainIcon';
 
 interface ChatMessageItemProps {
   message: Message;
@@ -186,6 +187,11 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
     isAI &&
     (/(?:github\.com|josheqani\/post-pilot|repository|readme\.md)/i.test(displayContent) ||
       /(?:inspected the|reviewed the)\s+\*\*?[a-zA-Z0-9_./-]+\*\*?\s+repository/i.test(displayContent));
+  const hasMemoryRecalled =
+    isAI &&
+    /(?:remember|memory|as you noted|based on your preference|per your background|in your bio)/i.test(
+      displayContent
+    );
   const hasWebSearch = !hasGitHubGrounding && /(?:search results|searched the web|according to the search)/i.test(displayContent);
   const hasLinks = /https?:\/\/[^\s]+|\[[^\]]+\]\([^)]+\)/.test(displayContent);
 
@@ -280,6 +286,11 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
             {isAI && hasGitHubGrounding && (
               <Label variant="accent" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                 <MarkGithubIcon size={12} /> GitHub Grounded
+              </Label>
+            )}
+            {isAI && hasMemoryRecalled && (
+              <Label variant="secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <BrainIcon size={12} /> Memory Recalled
               </Label>
             )}
             {isAI && !hasGitHubGrounding && hasWebSearch && (

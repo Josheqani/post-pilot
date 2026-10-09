@@ -42,10 +42,18 @@ export async function chatWithAssistant(
   provider: AIProvider,
   history: AIMessage[],
   enableSearch?: boolean,
-  groundingContext?: string
+  groundingContext?: string,
+  memoryPrompt?: string
 ): Promise<string> {
   const systemPrompt = buildSystemPrompt(enableSearch);
   const messages: AIMessage[] = [{ role: 'system', content: systemPrompt }];
+
+  if (memoryPrompt) {
+    messages.push({
+      role: 'system',
+      content: memoryPrompt,
+    });
+  }
 
   if (groundingContext) {
     messages.push({

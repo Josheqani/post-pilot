@@ -248,6 +248,9 @@ export async function handleConversationRoutes(
       let customHeaders: Record<string, string> = {};
       let enableSearch = false;
       let searchProtocol: 'auto' | 'openai_tool' | 'google_search' | 'openrouter' | 'perplexity' = 'auto';
+      let enableMemory = false;
+      let memoryContent = '';
+
       if (configRow.custom_headers) {
         try {
           const parsed = JSON.parse(configRow.custom_headers);
@@ -257,8 +260,17 @@ export async function handleConversationRoutes(
           if (parsed._search_protocol) {
             searchProtocol = parsed._search_protocol;
           }
+          if (parsed._enable_memory === 'true' || parsed._enable_memory === true) {
+            enableMemory = true;
+          }
+          if (typeof parsed._memory_content === 'string') {
+            memoryContent = parsed._memory_content;
+          }
           delete parsed._enable_search;
           delete parsed._search_protocol;
+          delete parsed._enable_memory;
+          delete parsed._memory_limit;
+          delete parsed._memory_content;
           customHeaders = parsed;
         } catch {
           // ignore
@@ -302,13 +314,19 @@ export async function handleConversationRoutes(
         // Continue gracefully even if live content fetch encounters a network issue
       }
 
-      let reply = await chatWithAssistant(provider, history, enableSearch, liveGroundingText);
+      // Build memory prompt if long-term memory is active
+      let memoryPrompt: string | undefined;
+      if (enableMemory && memoryContent.trim()) {
+        memoryPrompt = `=== LONG-TERM CREATOR MEMORY & PROFILE ===\nThe user has saved the following persistent memory facts and writing preferences:\n${memoryContent.trim()}\n=== END LONG-TERM MEMORY ===\nInstructions:\n- Keep your tone, ideas, style, and post hooks aligned with this creator memory.\n- Naturally reflect these preferences without reciting this memory block verbatim unless asked.`;
+      }
+
+      let reply = await chatWithAssistant(provider, history, enableSearch, liveGroundingText, memoryPrompt);
 
       // If reply is empty (e.g. tool execution issue or proxy limitation), retry without search grounding
       if (!reply || !reply.trim()) {
         if (enableSearch) {
           try {
-            reply = await chatWithAssistant(provider, history, false, liveGroundingText);
+            reply = await chatWithAssistant(provider, history, false, liveGroundingText, memoryPrompt);
           } catch {
             // ignore retry error
           }

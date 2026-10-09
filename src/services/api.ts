@@ -12,6 +12,8 @@ import {
   User,
   AIImproveRequest,
   AIImproveResponse,
+  CompactMemoryRequest,
+  CompactMemoryResponse,
 } from '@/types';
 
 const API_BASE = '/api';
@@ -105,6 +107,15 @@ export const api = {
       request<AIImproveResponse>('/ai/improve', {
         method: 'POST',
         body: JSON.stringify(data),
+      }),
+    compactMemory: (data: CompactMemoryRequest) =>
+      request<CompactMemoryResponse>('/ai/memory/compact', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    clearMemory: () =>
+      request<{ success: boolean; message: string }>('/ai/memory', {
+        method: 'DELETE',
       }),
   },
 

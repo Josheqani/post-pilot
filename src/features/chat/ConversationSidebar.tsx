@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, IconButton } from '@primer/react';
+import { Button, IconButton, Spinner } from '@primer/react';
 import { Box, Text } from '@/components/PrimerCompat';
 import { PlusIcon, TrashIcon, CommentDiscussionIcon } from '@primer/octicons-react';
 import { Conversation } from '@/types';
@@ -11,6 +11,8 @@ interface ConversationSidebarProps {
   onNew: () => void;
   onDelete: (id: string) => void;
   isLoading: boolean;
+  isResponding?: boolean;
+  respondingId?: string | null;
 }
 
 export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
@@ -20,6 +22,8 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   onNew,
   onDelete,
   isLoading,
+  isResponding = false,
+  respondingId = null,
 }) => {
   return (
     <Box
@@ -67,6 +71,9 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
           >
             {conversations.map((c) => {
               const isSelected = c.id === activeId;
+              const isChatResponding = Boolean(
+                respondingId ? respondingId === c.id : (isResponding && isSelected)
+              );
               return (
                 <Box
                   as="li"
@@ -119,8 +126,13 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
                         flexShrink: 0,
                         opacity: isSelected ? 1 : 0.65,
                       }}
+                      title={isChatResponding ? 'Generating response...' : undefined}
                     >
-                      <CommentDiscussionIcon size={14} />
+                      {isChatResponding ? (
+                        <Spinner size="small" />
+                      ) : (
+                        <CommentDiscussionIcon size={14} />
+                      )}
                     </span>
                     <Text
                       sx={{
