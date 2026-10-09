@@ -9,13 +9,9 @@ import {
   CopyIcon,
   GlobeIcon,
   LinkIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
 } from '@primer/octicons-react';
 import { Message } from '@/types';
 import { MarkdownContent } from '@/components/MarkdownContent';
-import { ThinkingOrb } from 'thinking-orbs';
-import { useTheme } from '@/hooks/useTheme';
 
 interface ChatMessageItemProps {
   message: Message;
@@ -88,25 +84,15 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   onCreateDraft,
   isDraftCreating,
 }) => {
-  const { colorMode } = useTheme();
   const isAI = message.role === 'assistant';
   const isSystem = message.role === 'system';
   const [copied, setCopied] = useState(false);
-  const [showThinking, setShowThinking] = useState(false);
 
   const draftInfo = isAI ? getPostDraftInfo(message) : { isPostDraft: false, draftContent: message.content };
 
-  // Parse <thinking> or <reasoning> tags
-  let thinkingContent = '';
-  let cleanContent = message.content;
-  const thinkingMatch = cleanContent.match(/<(?:thinking|reasoning)>([\s\S]*?)<\/(?:thinking|reasoning)>/i);
-  if (thinkingMatch && thinkingMatch[1]) {
-    thinkingContent = thinkingMatch[1].trim();
-    cleanContent = cleanContent.replace(/<(?:thinking|reasoning)>[\s\S]*?<\/(?:thinking|reasoning)>/gi, '').trim();
-  }
-
-  // Strip XML-like draft tags for clean message reading
-  const displayContent = cleanContent
+  // Strip internal XML-like tags (thinking, reasoning, thought, post, title) for clean message reading
+  const displayContent = message.content
+    .replace(/<(?:thinking|reasoning|thought)>[\s\S]*?<\/(?:thinking|reasoning|thought)>/gi, '')
     .replace(/<\/?(?:title|post|linkedin_post)>/gi, '')
     .trim();
 
@@ -222,58 +208,6 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
           </Text>
         </Box>
 
-        {/* Thinking Process Drawer if present */}
-        {isAI && thinkingContent && (
-          <Box
-            sx={{
-              mb: 2,
-              borderRadius: 2,
-              border: '1px solid',
-              borderColor: 'border.muted',
-              bg: 'canvas.default',
-              overflow: 'hidden',
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setShowThinking(!showThinking)}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '6px 10px',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                color: 'var(--fgColor-muted, #656d76)',
-                fontSize: '12px',
-              }}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <ThinkingOrb
-                  state="solving"
-                  size={20}
-                  theme={
-                    colorMode === 'night' ||
-                    (colorMode === 'auto' &&
-                      typeof window !== 'undefined' &&
-                      window.matchMedia('(prefers-color-scheme: dark)').matches)
-                      ? 'dark'
-                      : 'light'
-                  }
-                />
-                <strong>Thinking Process ({thinkingContent.split(/\s+/).length} words)</strong>
-              </span>
-              {showThinking ? <ChevronDownIcon size={14} /> : <ChevronRightIcon size={14} />}
-            </button>
-            {showThinking && (
-              <Box sx={{ p: 2, pt: 1, borderTop: '1px dashed', borderColor: 'border.muted', fontSize: 0 }}>
-                <MarkdownContent content={thinkingContent} />
-              </Box>
-            )}
-          </Box>
-        )}
 
         {/* Suggested Title preview for draft */}
         {isAI && draftInfo.isPostDraft && draftInfo.draftTitle && (

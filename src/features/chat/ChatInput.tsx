@@ -8,12 +8,6 @@ interface ChatInputProps {
   isLoading: boolean;
 }
 
-const QUICK_PROMPTS = [
-  'Draft a LinkedIn post about shipping early vs perfectionism',
-  'Create a post explaining how we optimized React performance',
-  'Write a punchy hook about lessons learned from system failures',
-];
-
 export const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading }) => {
   const [content, setContent] = useState('');
 
@@ -32,27 +26,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading }) => {
 
   return (
     <Box sx={{ p: 3, borderTop: '1px solid', borderColor: 'border.default', bg: 'canvas.default' }}>
-      {/* Quick Prompts */}
-      <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-        {QUICK_PROMPTS.map((prompt, i) => (
-          <Button
-            key={i}
-            size="small"
-            variant="invisible"
-            style={{
-              fontSize: '12px',
-              border: '1px solid var(--borderColor-muted, #d8dee4)',
-              borderRadius: '6px',
-              padding: '2px 8px',
-            }}
-            onClick={() => onSend(prompt)}
-            disabled={isLoading}
-          >
-            💡 {prompt}
-          </Button>
-        ))}
-      </Box>
-
       {/* Input Field */}
       <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-end' }}>
         <Textarea

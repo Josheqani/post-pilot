@@ -651,14 +651,15 @@ function extractResponseContent(data: Record<string, unknown>): ExtractedContent
     }
   }
 
-  // 6. Integrate reasoning into text if present
-  if (reasoning) {
-    if (text) {
-      text = `<thinking>\n${reasoning}\n</thinking>\n\n${text}`;
-    } else {
-      text = reasoning;
-    }
+  // 6. If text was completely empty, use reasoning as fallback so response is not blank
+  if (!text && reasoning) {
+    text = reasoning;
   }
+
+  // Strip any internal XML thinking/reasoning tags from final text
+  text = text
+    .replace(/<(?:thinking|reasoning|thought)>[\s\S]*?<\/(?:thinking|reasoning|thought)>/gi, '')
+    .trim();
 
   // 7. Append formatted source citations if present and not already embedded
   if (citations.length > 0) {
