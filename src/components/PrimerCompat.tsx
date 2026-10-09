@@ -1,9 +1,15 @@
 import React from 'react';
-import { Heading as PrimerHeading, Text as PrimerText, Flash as PrimerFlash } from '@primer/react';
+import {
+  Heading as PrimerHeading,
+  Text as PrimerText,
+  Flash as PrimerFlash,
+  Banner as PrimerBanner,
+  type BannerProps,
+} from '@primer/react';
 import { Box } from './Box';
 import { resolveSx, SxProp } from './resolveSx';
 
-export { Box };
+export { Box, PrimerBanner as Banner, type BannerProps };
 
 export interface HeadingProps extends React.HTMLAttributes<HTMLHeadingElement> {
   as?: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
@@ -49,6 +55,7 @@ export const Text: React.FC<TextProps> = ({
 export interface FlashProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: 'default' | 'warning' | 'success' | 'danger';
   full?: boolean;
+  leadingVisual?: React.ElementType;
   sx?: SxProp;
   style?: React.CSSProperties;
   children?: React.ReactNode;
@@ -56,14 +63,22 @@ export interface FlashProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export const Flash: React.FC<FlashProps> = ({
   variant = 'default',
+  leadingVisual: LeadingVisual,
   sx,
   style,
   children,
   ...props
 }) => {
-  const mergedStyle = { ...resolveSx(sx), ...style };
+  const resolved = resolveSx(sx);
+  const mergedStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    ...resolved,
+    ...style,
+  };
   return (
     <PrimerFlash variant={variant} style={mergedStyle} {...props}>
+      {LeadingVisual && <LeadingVisual size={16} />}
       {children}
     </PrimerFlash>
   );

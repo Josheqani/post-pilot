@@ -132,9 +132,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onDelete, onPublish })
       {/* Failure Callout */}
       {post.status === 'failed' && post.errorMessage && (
         <Flash variant="danger" sx={{ py: 1, px: 2, fontSize: 0 }}>
-          <span style={{ marginRight: 6 }}>
-            <AlertIcon size={14} />
-          </span>
+          <AlertIcon size={14} />
           Publish error: {post.errorMessage}
         </Flash>
       )}

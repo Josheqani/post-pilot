@@ -74,18 +74,14 @@ export const LinkedInSettings: React.FC = () => {
 
       {error && (
         <Flash variant="danger" sx={{ mb: 3 }}>
-          <span style={{ marginRight: 8 }}>
-            <AlertIcon size={16} />
-          </span>
+          <AlertIcon size={16} />
           {error}
         </Flash>
       )}
 
       {authError && (
         <Flash variant="warning" sx={{ mb: 3 }}>
-          <span style={{ marginRight: 8 }}>
-            <AlertIcon size={16} />
-          </span>
+          <AlertIcon size={16} />
           {authError}
         </Flash>
       )}

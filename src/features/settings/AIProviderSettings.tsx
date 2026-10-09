@@ -169,27 +169,21 @@ export const AIProviderSettings: React.FC = () => {
 
       {successNotice && (
         <Flash variant="success" sx={{ mb: 3 }}>
-          <span style={{ marginRight: 8 }}>
-            <CheckIcon size={16} />
-          </span>
+          <CheckIcon size={16} />
           {successNotice}
         </Flash>
       )}
 
       {error && (
         <Flash variant="danger" sx={{ mb: 3 }}>
-          <span style={{ marginRight: 8 }}>
-            <AlertIcon size={16} />
-          </span>
+          <AlertIcon size={16} />
           {error}
         </Flash>
       )}
 
       {testResult && (
         <Flash variant={testResult.success ? 'success' : 'danger'} sx={{ mb: 3 }}>
-          <span style={{ marginRight: 8 }}>
-            {testResult.success ? <CheckIcon size={16} /> : <AlertIcon size={16} />}
-          </span>
+          {testResult.success ? <CheckIcon size={16} /> : <AlertIcon size={16} />}
           {testResult.message}
         </Flash>
       )}

@@ -103,30 +103,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ colorMode, onSetColo
 
       {callbackStatus.success && (
         <Flash variant="success" sx={{ mb: 3 }}>
-          <span
-            style={{
-              marginRight: 8,
-              display: 'inline-flex',
-              verticalAlign: 'text-bottom',
-            }}
-          >
-            <CheckIcon size={16} />
-          </span>
+          <CheckIcon size={16} />
           LinkedIn account successfully connected! Redirecting...
         </Flash>
       )}
 
       {callbackStatus.error && (
         <Flash variant="danger" sx={{ mb: 3 }}>
-          <span
-            style={{
-              marginRight: 8,
-              display: 'inline-flex',
-              verticalAlign: 'text-bottom',
-            }}
-          >
-            <AlertIcon size={16} />
-          </span>
+          <AlertIcon size={16} />
           Failed to complete LinkedIn connection: {callbackStatus.error}
         </Flash>
       )}

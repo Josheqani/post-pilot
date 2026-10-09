@@ -123,10 +123,8 @@ export const ChatPage: React.FC = () => {
               gap: 2,
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0, flex: 1 }}>
-              <span style={{ marginRight: 8, display: 'inline-flex', flexShrink: 0 }}>
-                <AlertIcon size={16} />
-              </span>
+            <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0, flex: 1, gap: 2 }}>
+              <AlertIcon size={16} />
               <Text sx={{ fontSize: 1, wordBreak: 'break-word' }}>{error}</Text>
             </Box>
             {(error.includes('AI Provider') || error.includes('Settings')) && (

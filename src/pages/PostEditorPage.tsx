@@ -217,9 +217,7 @@ export const PostEditorPage: React.FC = () => {
       {/* Notifications */}
       {notification && (
         <Flash variant={notification.type} sx={{ mb: 3 }}>
-          <span style={{ marginRight: 8 }}>
-            {notification.type === 'success' ? <CheckIcon size={16} /> : <AlertIcon size={16} />}
-          </span>
+          {notification.type === 'success' ? <CheckIcon size={16} /> : <AlertIcon size={16} />}
           {notification.message}
         </Flash>
       )}
