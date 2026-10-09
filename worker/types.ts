@@ -13,6 +13,9 @@ export interface Env {
   DEFAULT_AI_BASE_URL?: string;
   DEFAULT_AI_API_KEY?: string;
   DEFAULT_AI_MODEL?: string;
+
+  // Optional GitHub Token for extended rate limits
+  GITHUB_TOKEN?: string;
 }
 
 export interface RequestContext {

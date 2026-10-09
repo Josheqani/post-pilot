@@ -41,10 +41,20 @@ Draft Formatting:
 export async function chatWithAssistant(
   provider: AIProvider,
   history: AIMessage[],
-  enableSearch?: boolean
+  enableSearch?: boolean,
+  groundingContext?: string
 ): Promise<string> {
   const systemPrompt = buildSystemPrompt(enableSearch);
-  const messages: AIMessage[] = [{ role: 'system', content: systemPrompt }, ...history];
+  const messages: AIMessage[] = [{ role: 'system', content: systemPrompt }];
+
+  if (groundingContext) {
+    messages.push({
+      role: 'system',
+      content: groundingContext,
+    });
+  }
+
+  messages.push(...history);
 
   const response = await provider.chat({
     messages,

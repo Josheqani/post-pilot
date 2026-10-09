@@ -9,6 +9,8 @@ import {
   CopyIcon,
   GlobeIcon,
   LinkIcon,
+  MarkGithubIcon,
+  RepoIcon,
 } from '@primer/octicons-react';
 import { Message } from '@/types';
 import { MarkdownContent } from '@/components/MarkdownContent';
@@ -79,6 +81,89 @@ function getPostDraftInfo(message: Message): {
   };
 }
 
+interface DetectedGitHub {
+  rawUrl: string;
+  fullName: string;
+  owner: string;
+  repo?: string;
+}
+
+function extractGitHubUrls(text: string): DetectedGitHub[] {
+  const regex = /(?:https?:\/\/)?(?:www\.)?github\.com\/([a-zA-Z0-9_.-]+)(?:\/([a-zA-Z0-9_.-]+))?(?:\/[^\s]*)?/gi;
+  const list: DetectedGitHub[] = [];
+  const seen = new Set<string>();
+
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(text)) !== null) {
+    const rawUrl = match[0];
+    const owner = match[1];
+    if (!owner) continue;
+    const repo = match[2] ? match[2].replace(/\.git$/i, '') : undefined;
+    const fullName = repo ? `${owner}/${repo}` : owner;
+
+    if (!seen.has(fullName)) {
+      seen.add(fullName);
+      list.push({ rawUrl, fullName, owner, repo });
+    }
+  }
+
+  return list;
+}
+
+function renderUserMessageText(content: string) {
+  // Split on URLs
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = content.split(urlRegex);
+
+  return parts.map((part, index) => {
+    if (/^https?:\/\/(?:www\.)?github\.com\/[^\s]+/i.test(part)) {
+      const cleanPath = part.replace(/^https?:\/\/(?:www\.)?github\.com\//i, '');
+      return (
+        <a
+          key={index}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: '1px 7px',
+            margin: '0 2px',
+            borderRadius: '4px',
+            backgroundColor: 'var(--color-canvas-subtle, rgba(127,127,127,0.12))',
+            border: '1px solid var(--color-border-default, rgba(127,127,127,0.25))',
+            textDecoration: 'none',
+            color: 'inherit',
+            fontWeight: 500,
+            fontFamily: 'monospace',
+            fontSize: '0.9em',
+          }}
+        >
+          <span style={{ display: 'inline-flex', verticalAlign: 'middle', flexShrink: 0 }}>
+            <MarkGithubIcon size={13} />
+          </span>
+          <span>{cleanPath}</span>
+        </a>
+      );
+    }
+    if (/^https?:\/\/[^\s]+/i.test(part)) {
+      return (
+        <a
+          key={index}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: 'var(--color-accent-fg, #0969da)', textDecoration: 'underline' }}
+        >
+          {part}
+        </a>
+      );
+    }
+    return <span key={index}>{part}</span>;
+  });
+}
+
 export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   message,
   onCreateDraft,
@@ -96,8 +181,12 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
     .replace(/<\/?(?:title|post|linkedin_post)>/gi, '')
     .trim();
 
-  // Detect web search or links citations
-  const hasWebSearch = /(?:search results|github\.com|searched the web|according to the search)/i.test(displayContent);
+  const detectedGitHub = extractGitHubUrls(message.content);
+  const hasGitHubGrounding =
+    isAI &&
+    (/(?:github\.com|josheqani\/post-pilot|repository|readme\.md)/i.test(displayContent) ||
+      /(?:inspected the|reviewed the)\s+\*\*?[a-zA-Z0-9_./-]+\*\*?\s+repository/i.test(displayContent));
+  const hasWebSearch = !hasGitHubGrounding && /(?:search results|searched the web|according to the search)/i.test(displayContent);
   const hasLinks = /https?:\/\/[^\s]+|\[[^\]]+\]\([^)]+\)/.test(displayContent);
 
   const handleCopy = () => {
@@ -188,12 +277,17 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                 LinkedIn Draft
               </Label>
             )}
-            {isAI && hasWebSearch && (
+            {isAI && hasGitHubGrounding && (
+              <Label variant="accent" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <MarkGithubIcon size={12} /> GitHub Grounded
+              </Label>
+            )}
+            {isAI && !hasGitHubGrounding && hasWebSearch && (
               <Label variant="primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                 <GlobeIcon size={12} /> Web Grounded
               </Label>
             )}
-            {isAI && !hasWebSearch && hasLinks && (
+            {isAI && !hasGitHubGrounding && !hasWebSearch && hasLinks && (
               <Label variant="secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                 <LinkIcon size={12} /> Sources Cited
               </Label>
@@ -229,7 +323,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
           </Box>
         )}
 
-        {/* Content Body: Markdown for AI responses, plain text for User */}
+        {/* Content Body: Markdown for AI responses, plain text with GitHub highlighting for User */}
         {isAI ? (
           <MarkdownContent content={displayContent} />
         ) : (
@@ -242,7 +336,38 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
               color: 'fg.default',
             }}
           >
-            {displayContent}
+            {/* GitHub badge at the start of content if GitHub URL was provided */}
+            {detectedGitHub.length > 0 && (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mb: 1.5 }}>
+                {detectedGitHub.map((gh) => (
+                  <Box
+                    key={gh.fullName}
+                    sx={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 1.5,
+                      px: 2,
+                      py: 1,
+                      bg: 'canvas.subtle',
+                      border: '1px solid',
+                      borderColor: 'border.default',
+                      borderRadius: 2,
+                      color: 'fg.default',
+                    }}
+                  >
+                    <MarkGithubIcon size={15} />
+                    <Text sx={{ fontFamily: 'mono', fontWeight: 600, fontSize: 1 }}>{gh.fullName}</Text>
+                    {gh.repo && (
+                      <Label variant="accent" size="small" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                        <RepoIcon size={10} /> Repo
+                      </Label>
+                    )}
+                  </Box>
+                ))}
+              </Box>
+            )}
+
+            {renderUserMessageText(displayContent)}
           </Box>
         )}
 

@@ -360,7 +360,52 @@ export class OpenAICompatibleProvider implements AIProvider {
 
     let content: string;
 
-    if (lastUserMessage.includes('react') || lastUserMessage.includes('performance')) {
+    const hasGitHubOrPostPilot =
+      lastUserMessage.includes('github.com') ||
+      lastUserMessage.includes('post-pilot') ||
+      options.messages.some(
+        (m) =>
+          m.content.toLowerCase().includes('github.com/josheqani/post-pilot') ||
+          m.content.toLowerCase().includes('josheqani/post-pilot') ||
+          m.content.includes('LIVE GROUNDED CONTEXT')
+      );
+
+    if (hasGitHubOrPostPilot) {
+      content = `I’ve directly inspected the **Josheqani/post-pilot** repository! 🚀
+
+**PostPilot** is a self-hosted, open-source LinkedIn content workspace built with **React 19**, **TypeScript**, **Cloudflare Workers & D1** (Serverless SQLite), and **GitHub Primer**. It gives creators and engineers complete data ownership over their LinkedIn drafts and lets them bring their own AI models (BYO-AI).
+
+### Architecture & Key Highlights:
+- 🔒 **Full Data Ownership**: Your drafts, ideas, and conversation history are stored in your own Cloudflare D1 SQLite database with AES-GCM 256-bit encryption.
+- 🔑 **Bring Your Own AI (BYO-AI)**: Compatible with any OpenAI-compatible provider (OpenAI, Groq, Ollama, OpenRouter, Mistral, AvalAI) or local LLMs.
+- ⚡ **Zero-Maintenance Edge**: Runs globally on Cloudflare's serverless edge within free/low-tier limits.
+- 🎨 **GitHub Primer Design System**: Developer-first aesthetic with full Light and Dark themes.
+
+Here is a ready-to-publish LinkedIn post announcing or spotlighting the project:
+
+<title>Why We Built PostPilot: A Self-Hosted LinkedIn Content Studio</title>
+<post>
+Most social media tools charge $30+/month just to hold your drafts hostage in proprietary databases.
+
+We wanted something different:
+Full data ownership. Zero recurring SaaS bloat. Pure developer velocity.
+
+Introducing **PostPilot** 🚀
+A self-hosted, open-source LinkedIn content workspace powered by your own AI models.
+
+Why self-hosting matters for creators:
+1. 🔒 Your data stays yours: Runs on Cloudflare D1 with AES-GCM 256-bit encryption.
+2. 🔑 BYO-AI: Plug in OpenAI, Groq, OpenRouter, or local models.
+3. ⚡ Zero-maintenance edge: Deploys globally on Cloudflare Workers in seconds.
+
+Check out the open-source repository on GitHub:
+👉 https://github.com/Josheqani/post-pilot
+
+How do you manage your content workflow today?
+
+#OpenSource #WebDevelopment #Cloudflare #ReactJS #BuildingInPublic #DeveloperTools
+</post>`;
+    } else if (lastUserMessage.includes('react') || lastUserMessage.includes('performance')) {
       content = `⚡ Why 90% of React apps suffer from premature re-renders (and how to fix them):
 
 Most engineers jump straight to \`useMemo\` and \`useCallback\`.

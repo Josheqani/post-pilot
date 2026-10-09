@@ -6,6 +6,7 @@ import { generateId } from '../db/client';
 import { decryptSecret } from '../services/crypto';
 import { createAIProvider } from '../services/ai/factory';
 import { chatWithAssistant } from '../services/ai/service';
+import { fetchLiveContentForPrompt } from '../services/content-fetcher';
 import { AIMessage } from '../services/ai/types';
 
 function detectPostDraft(content: string): {
@@ -290,13 +291,24 @@ export async function handleConversationRoutes(
         content: m.content,
       }));
 
-      let reply = await chatWithAssistant(provider, history, enableSearch);
+      // Fetch live content if user message references GitHub or URLs
+      let liveGroundingText: string | undefined;
+      try {
+        const liveGrounding = await fetchLiveContentForPrompt(userContent, env.GITHUB_TOKEN);
+        if (liveGrounding?.groundingContext) {
+          liveGroundingText = liveGrounding.groundingContext;
+        }
+      } catch {
+        // Continue gracefully even if live content fetch encounters a network issue
+      }
+
+      let reply = await chatWithAssistant(provider, history, enableSearch, liveGroundingText);
 
       // If reply is empty (e.g. tool execution issue or proxy limitation), retry without search grounding
       if (!reply || !reply.trim()) {
         if (enableSearch) {
           try {
-            reply = await chatWithAssistant(provider, history, false);
+            reply = await chatWithAssistant(provider, history, false, liveGroundingText);
           } catch {
             // ignore retry error
           }
